@@ -49,6 +49,20 @@ struct ExplanationView: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
 
+            if appState.shouldShowIncompleteRetryHint {
+                Text("Incomplete response")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                Button("Retry") {
+                    appState.retryLastRequest()
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .underline()
+            }
+
             if appState.canRequestDeeperExplanation {
                 Button("More") {
                     appState.requestDeeperExplanation()

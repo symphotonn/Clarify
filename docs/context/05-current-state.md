@@ -1,5 +1,5 @@
 # 05. Current State / Next Steps
-_Last updated: 2026-02-13 06:20 UTC_
+_Last updated: 2026-02-13 06:28 UTC_
 
 ## What Works
 - Global hotkey triggers capture and explanation flow.
@@ -16,6 +16,7 @@ _Last updated: 2026-02-13 06:20 UTC_
 - Depth-1 completion gate runs only for `.length`/`.unknown` stop reasons; `.stop` is trusted and skips repair.
 - Depth-1 repair uses continuation-tail context, one attempt max, and a 3s hard timeout.
 - `.stop` now has a safety exception: obvious incomplete endings still trigger one repair pass.
+- If completion still degrades (for example repair timeout/failure), result view shows a subtle inline `Incomplete response` hint with a `Retry` action.
 - Permission onboarding supports polling and auto-resume after grant.
 - Settings persist API key/hotkey/model, with registration conflict hint for unavailable shortcuts.
 - Global hotkey callbacks are paused during Settings shortcut recording to avoid accidental overlay triggers.

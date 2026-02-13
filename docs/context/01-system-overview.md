@@ -1,5 +1,5 @@
 # 01. System Overview
-_Last updated: 2026-02-13 06:20 UTC_
+_Last updated: 2026-02-13 06:28 UTC_
 
 ## What The App Does
 Clarify is a macOS menu bar assistant for instant text explanations.

@@ -627,6 +627,7 @@ final class AppStateTests: XCTestCase {
             state.explanationText,
             "In this context, \"fragment\" refers to an incomplete piece of text."
         )
+        XCTAssertFalse(state.shouldShowIncompleteRetryHint)
         let repairCallCount = await client.callCount()
         XCTAssertEqual(repairCallCount, 2)
     }
@@ -743,8 +744,41 @@ final class AppStateTests: XCTestCase {
 
         XCTAssertEqual(state.overlayPhase, .result)
         XCTAssertEqual(state.explanationText, "In this context, \"fragment\" refers to a")
+        XCTAssertTrue(state.shouldShowIncompleteRetryHint)
         let callCount = await client.callCount()
         XCTAssertEqual(callCount, 2)
+    }
+
+    @MainActor
+    func testIncompleteRetryHintClearsAfterRetrySucceeds() async {
+        let client = SequencedStreamingClient(responses: [
+            [.delta("[MODE: Learn]\nIn this context, \"fragment\" refers to a"), .done(.length)],
+            [.error("repair failed")],
+            [.delta("[MODE: Learn]\nIn this context, \"fragment\" means an incomplete piece of text."), .done(.stop)]
+        ])
+
+        let state = AppState(
+            contextProvider: { _, _ in Self.makeContext(selectedText: "fragment") },
+            clientFactory: { _, _ in client },
+            refreshPermissionOnHotkey: false
+        )
+
+        let settings = SettingsManager()
+        settings.apiKey = "test-key"
+        settings.modelName = "test-model"
+        state.settingsManager = settings
+        state.permissionGranted = true
+
+        state.handleHotkey(isDoublePress: false)
+        await waitUntilLoaded(state)
+        XCTAssertTrue(state.shouldShowIncompleteRetryHint)
+
+        state.retryLastRequest()
+        await waitUntilLoaded(state)
+
+        XCTAssertEqual(state.overlayPhase, .result)
+        XCTAssertEqual(state.explanationText, "In this context, \"fragment\" means an incomplete piece of text.")
+        XCTAssertFalse(state.shouldShowIncompleteRetryHint)
     }
 
     @MainActor

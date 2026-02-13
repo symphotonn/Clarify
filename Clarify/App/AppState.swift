@@ -216,6 +216,8 @@ final class AppState {
         hasMeaningfulText(explanationText)
     }
 
+    private(set) var shouldShowIncompleteRetryHint = false
+
     var shouldShowContextUsedBadge: Bool {
         guard let currentContext, hasMeaningfulExplanationText else { return false }
         return currentContext.hasContextSignal
@@ -481,6 +483,7 @@ final class AppState {
         if depth == 1 {
             enrichedContextCache = nil
         }
+        shouldShowIncompleteRetryHint = false
         resetSession(
             id: activeRequestID,
             phase: .loadingPreToken,
@@ -617,6 +620,7 @@ final class AppState {
                 publishRequestMetrics(text: displayText)
 
                 if !self.hasMeaningfulText(displayText) {
+                    self.shouldShowIncompleteRetryHint = false
                     self.errorMessage = "No explanation returned. Verify API key, model, and network access."
                     self.session.phase = .error
                     self.generationStage = .idle
@@ -637,6 +641,7 @@ final class AppState {
                 self.currentMode = resolvedMode
                 self.explanationText = displayText
                 self.errorMessage = nil
+                self.shouldShowIncompleteRetryHint = completionGateEvaluated && !completionGatePassed
                 self.session.phase = .result
                 self.generationStage = .idle
                 self.streamLifecycleState = .completed
@@ -668,6 +673,7 @@ final class AppState {
                 let displayText = self.normalizedDisplayText(from: fullText.isEmpty ? pendingHeader : fullText)
                 publishRequestMetrics(text: displayText)
                 self.errorMessage = self.decorateErrorMessage(message, settings: settings)
+                self.shouldShowIncompleteRetryHint = false
                 self.session.phase = .error
                 self.generationStage = .idle
                 self.streamLifecycleState = .failed
@@ -784,6 +790,7 @@ final class AppState {
 
     private func failRequest(_ message: String) {
         errorMessage = message
+        shouldShowIncompleteRetryHint = false
         session.phase = .error
         generationStage = .idle
         streamLifecycleState = .failed
@@ -1043,6 +1050,7 @@ final class AppState {
 
     private func showNoSelectionError() {
         errorMessage = "Select some text first"
+        shouldShowIncompleteRetryHint = false
         session.phase = .error
         generationStage = .idle
         streamLifecycleState = .failed

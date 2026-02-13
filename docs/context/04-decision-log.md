@@ -1,5 +1,5 @@
 # 04. Decision Log (Append-Only)
-_Last updated: 2026-02-13 06:20 UTC_
+_Last updated: 2026-02-13 06:28 UTC_
 
 Do not edit or rewrite prior entries. Add new entries at the top using this format:
 
@@ -8,6 +8,10 @@ Do not edit or rewrite prior entries. Add new entries at the top using this form
   - **Rejected:** ...
 
 ## Entries
+
+- `2026-02-13` - **Decision:** Surface incomplete depth-1 outcomes as a subtle inline result hint (`Incomplete response` + `Retry`) instead of an error banner.
+  - **Why:** Incomplete output is a degraded-but-recoverable state; low-contrast inline treatment avoids signaling app failure.
+  - **Rejected:** Rendering degraded completeness states as red error UI.
 
 - `2026-02-13` - **Decision:** Trust model-completed `.stop` responses and skip depth-1 completeness gate for that stop reason.
   - **Why:** Reduces false-positive repair calls on intentionally concise/fragment-like but valid completions.

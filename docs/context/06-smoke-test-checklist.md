@@ -1,5 +1,5 @@
 # 06. Smoke-Test Checklist
-_Last updated: 2026-02-13 06:20 UTC_
+_Last updated: 2026-02-13 06:28 UTC_
 
 Purpose: quick regression sweep for hotkey, overlay panel behavior, and permissions.
 
@@ -132,9 +132,20 @@ Expected:
 - If repair times out, original text remains visible (no synthetic punctuation patch).
 - Final text never remains partially revealed beyond the flush deadline.
 
+### B12. Incomplete Hint Visual + Recovery
+1. Trigger a scenario where depth-1 result remains incomplete after repair timeout/failure.
+2. Observe result action row styling.
+3. Click `Retry`.
+4. Verify hint clears after a complete result.
+
+Expected:
+- Hint appears as subtle secondary inline text (not a red error banner).
+- Retry launches a normal request attempt.
+- Hint disappears once completion quality passes.
+
 ## C. Results Log (Append Newest First)
 
 - 2026-02-13
   - Automated checks: pass
   - Manual checks: pending
-  - Notes: CLI checks passed for `AppStateTests`, `HotkeyManagerTests`, and `PromptBuilderTests`. Interactive checks B1-B11 still require human run on desktop session.
+  - Notes: CLI checks passed for `AppStateTests`, `HotkeyManagerTests`, and `PromptBuilderTests`. Interactive checks B1-B12 still require human run on desktop session.
