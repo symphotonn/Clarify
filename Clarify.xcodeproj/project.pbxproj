@@ -1,0 +1,577 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10001 /* ClarifyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001; };
+		A10002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002; };
+		A10003 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003; };
+		A10004 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10004; };
+		A10005 /* DoublePressDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10005; };
+		A10006 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10006; };
+		A10007 /* AccessibilityCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10007; };
+		A10008 /* ContextInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10008; };
+		A10009 /* CursorPositionProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10009; };
+		A10010 /* OpenAIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10010; };
+		A10011 /* PromptBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10011; };
+		A10012 /* SSEParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10012; };
+		A10013 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10013; };
+		A10014 /* OverlayPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10014; };
+		A10015 /* PanelPositioner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10015; };
+		A10016 /* PanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10016; };
+		A10017 /* ExplanationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10017; };
+		A10019 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10019; };
+		A10020 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10020; };
+		A10022 /* StreamingTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10022; };
+		A10023 /* VisualEffectBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10023; };
+		A10024 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10024; };
+		A10025 /* ExplanationBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10025; };
+		A10026 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10026; };
+		A10027 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10027; };
+		A10028 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10028; };
+		A10029 /* HotkeyBinding.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10031; };
+		A10033 /* ShimmerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10033; };
+		A20001 /* DoublePressDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20001; };
+		A20002 /* PromptBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20002; };
+		A20003 /* SSEParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20003; };
+		A20004 /* ExplanationBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20004; };
+		A20005 /* PanelPositionerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20005; };
+		A20006 /* AppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20006; };
+		A20007 /* HotkeyManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20007; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C10001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = P10001;
+			proxyType = 1;
+			remoteGlobalIDString = T10001;
+			remoteInfo = Clarify;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		B10001 /* ClarifyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClarifyApp.swift; sourceTree = "<group>"; };
+		B10002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B10003 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		B10004 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
+		B10005 /* DoublePressDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoublePressDetector.swift; sourceTree = "<group>"; };
+		B10006 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
+		B10007 /* AccessibilityCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityCapture.swift; sourceTree = "<group>"; };
+		B10008 /* ContextInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextInfo.swift; sourceTree = "<group>"; };
+		B10009 /* CursorPositionProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorPositionProvider.swift; sourceTree = "<group>"; };
+		B10010 /* OpenAIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIClient.swift; sourceTree = "<group>"; };
+		B10011 /* PromptBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilder.swift; sourceTree = "<group>"; };
+		B10012 /* SSEParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSEParser.swift; sourceTree = "<group>"; };
+		B10013 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		B10014 /* OverlayPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayPanel.swift; sourceTree = "<group>"; };
+		B10015 /* PanelPositioner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelPositioner.swift; sourceTree = "<group>"; };
+		B10016 /* PanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelController.swift; sourceTree = "<group>"; };
+		B10017 /* ExplanationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExplanationView.swift; sourceTree = "<group>"; };
+		B10019 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B10020 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		B10022 /* StreamingTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingTextView.swift; sourceTree = "<group>"; };
+		B10023 /* VisualEffectBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBackground.swift; sourceTree = "<group>"; };
+		B10024 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
+		B10025 /* ExplanationBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExplanationBuffer.swift; sourceTree = "<group>"; };
+		B10026 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		B10027 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
+		B10028 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B10029 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10030 /* Clarify.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Clarify.entitlements; sourceTree = "<group>"; };
+		B10031 /* HotkeyBinding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyBinding.swift; sourceTree = "<group>"; };
+		B10033 /* ShimmerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShimmerView.swift; sourceTree = "<group>"; };
+		B20001 /* DoublePressDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoublePressDetectorTests.swift; sourceTree = "<group>"; };
+		B20002 /* PromptBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilderTests.swift; sourceTree = "<group>"; };
+		B20003 /* SSEParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSEParserTests.swift; sourceTree = "<group>"; };
+		B20004 /* ExplanationBufferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExplanationBufferTests.swift; sourceTree = "<group>"; };
+		B20005 /* PanelPositionerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelPositionerTests.swift; sourceTree = "<group>"; };
+		B20006 /* AppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateTests.swift; sourceTree = "<group>"; };
+		B20007 /* HotkeyManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManagerTests.swift; sourceTree = "<group>"; };
+		PR0001 /* Clarify.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Clarify.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		PR0002 /* ClarifyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClarifyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F10001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F20001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		G00001 = {
+			isa = PBXGroup;
+			children = (
+				G10000 /* Clarify */,
+				G20000 /* ClarifyTests */,
+				GP0001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		GP0001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				PR0001 /* Clarify.app */,
+				PR0002 /* ClarifyTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		G10000 /* Clarify */ = {
+			isa = PBXGroup;
+			children = (
+				G10001 /* App */,
+				G10002 /* Hotkey */,
+				G10003 /* Context */,
+				G10004 /* LLM */,
+				G10005 /* Panel */,
+				G10006 /* Views */,
+				G10007 /* Storage */,
+				G10008 /* Utilities */,
+				G10009 /* Resources */,
+				B10029 /* Info.plist */,
+			);
+			path = Clarify;
+			sourceTree = "<group>";
+		};
+		G10001 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				B10001 /* ClarifyApp.swift */,
+				B10002 /* AppDelegate.swift */,
+				B10003 /* AppState.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		G10002 /* Hotkey */ = {
+			isa = PBXGroup;
+			children = (
+				B10004 /* HotkeyManager.swift */,
+				B10005 /* DoublePressDetector.swift */,
+				B10006 /* PermissionManager.swift */,
+				B10031 /* HotkeyBinding.swift */,
+			);
+			path = Hotkey;
+			sourceTree = "<group>";
+		};
+		G10003 /* Context */ = {
+			isa = PBXGroup;
+			children = (
+				B10007 /* AccessibilityCapture.swift */,
+				B10008 /* ContextInfo.swift */,
+				B10009 /* CursorPositionProvider.swift */,
+			);
+			path = Context;
+			sourceTree = "<group>";
+		};
+		G10004 /* LLM */ = {
+			isa = PBXGroup;
+			children = (
+				B10010 /* OpenAIClient.swift */,
+				B10011 /* PromptBuilder.swift */,
+				B10012 /* SSEParser.swift */,
+				B10013 /* Models.swift */,
+			);
+			path = LLM;
+			sourceTree = "<group>";
+		};
+		G10005 /* Panel */ = {
+			isa = PBXGroup;
+			children = (
+				B10014 /* OverlayPanel.swift */,
+				B10015 /* PanelPositioner.swift */,
+				B10016 /* PanelController.swift */,
+			);
+			path = Panel;
+			sourceTree = "<group>";
+		};
+		G10006 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B10017 /* ExplanationView.swift */,
+				B10019 /* SettingsView.swift */,
+				B10020 /* OnboardingView.swift */,
+				G10010 /* Components */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		G10010 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				B10022 /* StreamingTextView.swift */,
+				B10023 /* VisualEffectBackground.swift */,
+				B10033 /* ShimmerView.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		G10007 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				B10024 /* SettingsManager.swift */,
+				B10025 /* ExplanationBuffer.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
+		G10008 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				B10026 /* Constants.swift */,
+				B10027 /* Extensions.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		G10009 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B10028 /* Assets.xcassets */,
+				B10030 /* Clarify.entitlements */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		G20000 /* ClarifyTests */ = {
+			isa = PBXGroup;
+			children = (
+				B20001 /* DoublePressDetectorTests.swift */,
+				B20002 /* PromptBuilderTests.swift */,
+				B20003 /* SSEParserTests.swift */,
+				B20004 /* ExplanationBufferTests.swift */,
+				B20005 /* PanelPositionerTests.swift */,
+				B20006 /* AppStateTests.swift */,
+				B20007 /* HotkeyManagerTests.swift */,
+			);
+			path = ClarifyTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		T10001 /* Clarify */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CL0001;
+			buildPhases = (
+				S10001 /* Sources */,
+				F10001 /* Frameworks */,
+				R10001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Clarify;
+			productName = Clarify;
+			productReference = PR0001;
+			productType = "com.apple.product-type.application";
+		};
+		T20001 /* ClarifyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CL0002;
+			buildPhases = (
+				S20001 /* Sources */,
+				F20001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D20001 /* PBXTargetDependency */,
+			);
+			name = ClarifyTests;
+			productName = ClarifyTests;
+			productReference = PR0002;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		P10001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					T10001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					T20001 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = T10001;
+					};
+				};
+			};
+			buildConfigurationList = CL0003;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = G00001;
+			productRefGroup = GP0001;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				T10001 /* Clarify */,
+				T20001 /* ClarifyTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		R10001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10028 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		S10001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10001 /* ClarifyApp.swift in Sources */,
+				A10002 /* AppDelegate.swift in Sources */,
+				A10003 /* AppState.swift in Sources */,
+				A10004 /* HotkeyManager.swift in Sources */,
+				A10005 /* DoublePressDetector.swift in Sources */,
+				A10006 /* PermissionManager.swift in Sources */,
+				A10007 /* AccessibilityCapture.swift in Sources */,
+				A10008 /* ContextInfo.swift in Sources */,
+				A10009 /* CursorPositionProvider.swift in Sources */,
+				A10010 /* OpenAIClient.swift in Sources */,
+				A10011 /* PromptBuilder.swift in Sources */,
+				A10012 /* SSEParser.swift in Sources */,
+				A10013 /* Models.swift in Sources */,
+				A10014 /* OverlayPanel.swift in Sources */,
+				A10015 /* PanelPositioner.swift in Sources */,
+				A10016 /* PanelController.swift in Sources */,
+				A10017 /* ExplanationView.swift in Sources */,
+				A10019 /* SettingsView.swift in Sources */,
+				A10020 /* OnboardingView.swift in Sources */,
+				A10022 /* StreamingTextView.swift in Sources */,
+				A10023 /* VisualEffectBackground.swift in Sources */,
+				A10024 /* SettingsManager.swift in Sources */,
+				A10025 /* ExplanationBuffer.swift in Sources */,
+				A10026 /* Constants.swift in Sources */,
+				A10027 /* Extensions.swift in Sources */,
+				A10029 /* HotkeyBinding.swift in Sources */,
+				A10033 /* ShimmerView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		S20001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A20001 /* DoublePressDetectorTests.swift in Sources */,
+				A20002 /* PromptBuilderTests.swift in Sources */,
+				A20003 /* SSEParserTests.swift in Sources */,
+				A20004 /* ExplanationBufferTests.swift in Sources */,
+				A20005 /* PanelPositionerTests.swift in Sources */,
+				A20006 /* AppStateTests.swift in Sources */,
+				A20007 /* HotkeyManagerTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D20001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = T10001;
+			targetProxy = C10001;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		BC0001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		BC0002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		BC1001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Clarify/Resources/Clarify.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Clarify/Info.plist;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAccessibilityUsageDescription = "Clarify needs accessibility access to read selected text and detect the ⌥Space hotkey.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.clarify.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		BC1002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Clarify/Resources/Clarify.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Clarify/Info.plist;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAccessibilityUsageDescription = "Clarify needs accessibility access to read selected text and detect the ⌥Space hotkey.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.clarify.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		BC2001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.clarify.ClarifyTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Clarify.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Clarify";
+			};
+			name = Debug;
+		};
+		BC2002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.clarify.ClarifyTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Clarify.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Clarify";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CL0001 /* Build configuration list for PBXNativeTarget "Clarify" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BC1001 /* Debug */,
+				BC1002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CL0002 /* Build configuration list for PBXNativeTarget "ClarifyTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BC2001 /* Debug */,
+				BC2002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CL0003 /* Build configuration list for PBXProject "Clarify" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BC0001 /* Debug */,
+				BC0002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = P10001 /* Project object */;
+}
