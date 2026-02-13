@@ -30,4 +30,22 @@ final class OverlayPanel: NSPanel {
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    func activateForInput() {
+        var updatedMask = styleMask
+        updatedMask.remove(.nonactivatingPanel)
+        styleMask = updatedMask
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        makeKeyAndOrderFront(nil)
+    }
+
+    func deactivateForInput() {
+        var updatedMask = styleMask
+        updatedMask.insert(.nonactivatingPanel)
+        styleMask = updatedMask
+        resignKey()
+        if isVisible {
+            orderFront(nil)
+        }
+    }
 }

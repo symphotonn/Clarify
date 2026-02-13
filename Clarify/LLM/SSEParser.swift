@@ -40,7 +40,7 @@ final class SSEParser {
             let data = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
 
             if data == "[DONE]" {
-                events.append(.done)
+                events.append(.done(.doneMarker))
                 continue
             }
 
@@ -62,11 +62,8 @@ final class SSEParser {
                 continue
             }
 
-            // Check finish_reason
             if let finishReason = first["finish_reason"] as? String, !finishReason.isEmpty {
-                if finishReason == "stop" || finishReason == "length" {
-                    // Will get [DONE] next, but extract any remaining content first
-                }
+                events.append(.done(Self.parseStopReason(finishReason)))
             }
 
             if let delta = first["delta"] as? [String: Any],
@@ -76,6 +73,17 @@ final class SSEParser {
         }
 
         return events
+    }
+
+    private static func parseStopReason(_ value: String) -> CompletionStopReason {
+        switch value.lowercased() {
+        case "stop":
+            return .stop
+        case "length":
+            return .length
+        default:
+            return .unknown
+        }
     }
 
     func reset() {

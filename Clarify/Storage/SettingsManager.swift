@@ -20,6 +20,7 @@ final class SettingsManager {
     private(set) var isModelFromEnvironment: Bool
     private(set) var lastSavedAt: Date?
     private(set) var lastSavedMessage: String = "Not saved yet"
+    private(set) var hotkeyRegistrationIssue: String?
 
     var apiKey: String {
         didSet {
@@ -186,6 +187,10 @@ final class SettingsManager {
     private func markSaved(_ message: String) {
         lastSavedAt = Date()
         lastSavedMessage = message
+    }
+
+    func setHotkeyRegistrationIssue(_ issue: String?) {
+        hotkeyRegistrationIssue = issue
     }
 }
 

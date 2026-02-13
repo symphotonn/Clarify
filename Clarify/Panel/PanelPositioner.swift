@@ -3,9 +3,13 @@ import AppKit
 enum PanelPositioner {
     /// Calculate the panel frame, anchored below the given point, clamped to the visible screen.
     /// Falls back to positioning above if there's not enough room below.
-    static func frame(anchorPoint: CGPoint, contentHeight: CGFloat) -> NSRect {
+    static func frame(
+        anchorPoint: CGPoint,
+        contentHeight: CGFloat,
+        maxHeight: CGFloat = Constants.panelMaxHeight
+    ) -> NSRect {
         let width = Constants.panelWidth
-        let height = min(contentHeight, Constants.panelMaxHeight)
+        let height = min(contentHeight, maxHeight)
 
         let screen = NSScreen.screen(containing: anchorPoint) ?? NSScreen.main ?? NSScreen.screens[0]
         let visibleFrame = screen.visibleFrame

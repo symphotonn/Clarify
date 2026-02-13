@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panelController: PanelController?
     private var settingsWindowController: NSWindowController?
     private var settingsRequestObserver: NSObjectProtocol?
+    private var hotkeyCaptureStateObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         OpenAIClient.prewarmConnection()
@@ -29,11 +30,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        hotkeyCaptureStateObserver = NotificationCenter.default.addObserver(
+            forName: .clarifyHotkeyCaptureStateChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                let isRecording = notification.object as? Bool ?? false
+                self?.hotkeyManager?.setHandlingEnabled(!isRecording)
+            }
+        }
+
         appState.permissionManager.startPolling()
 
         hotkeyManager = HotkeyManager(hotkey: settingsManager.hotkeyBinding) { [weak self] isDoublePress in
             Task { @MainActor in
                 self?.appState.handleHotkey(isDoublePress: isDoublePress)
+            }
+        }
+
+        hotkeyManager?.onRegistrationStatusChanged = { [weak self] issue in
+            Task { @MainActor in
+                self?.settingsManager.setHotkeyRegistrationIssue(issue)
             }
         }
 
@@ -53,11 +71,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         hotkeyManager?.stop()
+        hotkeyManager?.onRegistrationStatusChanged = nil
         settingsManager.onHotkeyChanged = nil
         appState.explanationBuffer.clear()
         if let settingsRequestObserver {
             NotificationCenter.default.removeObserver(settingsRequestObserver)
             self.settingsRequestObserver = nil
+        }
+        if let hotkeyCaptureStateObserver {
+            NotificationCenter.default.removeObserver(hotkeyCaptureStateObserver)
+            self.hotkeyCaptureStateObserver = nil
         }
     }
 
@@ -97,6 +120,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private var shouldAutoInstallStableBuildOnLaunch: Bool {
+        if isRunningUnitTests {
+            return false
+        }
+
         guard appState.shouldRecommendStableInstall else { return false }
         let env = ProcessInfo.processInfo.environment
         if let rawValue = env[Constants.devAutoInstallStableEnvVar]?
@@ -116,8 +143,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Default to stable-path runs in Debug to keep Accessibility trust sticky.
         return true
     }
+
+    private var isRunningUnitTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
 }
 
 private extension Notification.Name {
     static let clarifyOpenSettingsRequested = Notification.Name("clarify.openSettingsRequested")
+    static let clarifyHotkeyCaptureStateChanged = Notification.Name("clarify.hotkeyCaptureStateChanged")
 }

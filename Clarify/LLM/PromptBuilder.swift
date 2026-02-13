@@ -43,8 +43,10 @@ enum PromptBuilder {
     ) -> PromptParts {
         let wordLimit = depth >= 2 ? Constants.depth2WordLimit : Constants.depth1WordLimit
         let intent = inferIntent(from: context)
-        let expertise = inferExpertise(from: context)
-        let tone = inferTone(from: context)
+        let inferredExpertise = inferExpertise(from: context)
+        let inferredTone = inferTone(from: context)
+        let expertise: ExpertiseLevel = depth <= 1 ? .beginner : inferredExpertise
+        let tone: Tone = depth <= 1 ? .friendly : inferredTone
         let selectedWordCount = context.selectedText?
             .split(whereSeparator: { $0.isWhitespace || $0.isNewline })
             .count ?? 0
@@ -93,6 +95,29 @@ enum PromptBuilder {
         return .friendly
     }
 
+    static func buildChatSystemMessage(context: ContextInfo) -> String {
+        var parts: [String] = []
+        parts.append(Constants.chatSystemPrompt)
+        parts.append("Source context: \(sourceSummary(from: context))")
+        parts.append("Context quality: \(contextQualitySummary(from: context))")
+
+        if let selectedText = trimmed(context.selectedText) {
+            parts.append("Selected text:\n\(selectedText)")
+        }
+
+        if let selectedOccurrenceContext = trimmed(context.selectedOccurrenceContext) {
+            parts.append("Selected occurrence context:\n\(selectedOccurrenceContext)")
+        } else if let nearest = nearestContextSnippet(from: context) {
+            parts.append("Nearest context lines:\n\(nearest)")
+        }
+
+        if context.isConversationContext {
+            parts.append("Treat chat-like source context as lower confidence.")
+        }
+
+        return parts.joined(separator: "\n\n")
+    }
+
     private static let docsURLKeywords = [
         "docs.", "documentation", "developer.apple.com",
         "devdocs.io", "mdn", "readthedocs", "wiki"
@@ -110,7 +135,15 @@ enum PromptBuilder {
 
         parts.append("You are Clarify, a concise explanation assistant. Audience: \(expertise.description). Tone: \(tone.description).")
         parts.append("First line: [MODE: Learn], [MODE: Simplify], or [MODE: Diagnose]. Short selections (≤4 words): 1-2 sentences. Max \(wordLimit) words. No markdown emphasis.")
+        parts.append("First sentence must answer directly what the selected text means in this source context.")
         parts.append("Use provided context. Nearest context > dictionary meaning. Always explain, never refuse.")
+
+        if depth <= 1 {
+            parts.append("Depth 1 priority: be as simple and concise as possible.")
+            parts.append("Use plain everyday words for a beginner. Avoid jargon unless unavoidable, and define it briefly if used.")
+            parts.append("Output at most two short sentences. Skip background and side notes.")
+            parts.append("The response must be complete. Never stop mid-sentence.")
+        }
 
         if intent == .identifierLookup {
             parts.append("Treat as identifier. Explain in source context. Use nearby context to disambiguate.")
@@ -155,7 +188,12 @@ enum PromptBuilder {
             }
         }
 
-        parts.append("Constraint: if uncertain, explain the most likely meaning and note any ambiguity briefly.")
+        parts.append("Constraint: if uncertain, explain the most likely meaning first, then note ambiguity briefly.")
+
+        if depth <= 1 {
+            parts.append("Constraint: keep only the minimum useful explanation. No bullet points. No long background.")
+            parts.append("Constraint: end with a complete sentence, not a fragment.")
+        }
 
         if let prev = previousExplanation, depth >= 2 {
             parts.append("Previous explanation (depth \(depth - 1)):\n\(prev)")
@@ -260,9 +298,9 @@ enum PromptBuilder {
     private static func recommendedMaxOutputTokens(depth: Int, selectedWordCount: Int) -> Int {
         if depth <= 1 {
             if selectedWordCount <= 4 {
-                return 80
+                return 96
             }
-            return 120
+            return 140
         }
         return 180
     }

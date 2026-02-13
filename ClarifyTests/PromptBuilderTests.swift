@@ -22,7 +22,7 @@ final class PromptBuilderTests: XCTestCase {
         XCTAssertTrue(parts.input.contains("gradient descent"))
         XCTAssertTrue(parts.input.contains("Source: Safari"))
         XCTAssertTrue(parts.input.contains("title: Machine Learning Guide"))
-        XCTAssertEqual(parts.maxOutputTokens, 80)
+        XCTAssertEqual(parts.maxOutputTokens, 96)
     }
 
     func testDepth2IncludesPreviousExplanation() {
@@ -83,6 +83,10 @@ final class PromptBuilderTests: XCTestCase {
 
         XCTAssertTrue(parts.instructions.contains("concise explanation assistant"))
         XCTAssertTrue(parts.instructions.contains("1-2 sentences"))
+        XCTAssertTrue(parts.instructions.contains("First sentence must answer directly"))
+        XCTAssertTrue(parts.instructions.contains("Depth 1 priority: be as simple and concise as possible."))
+        XCTAssertTrue(parts.instructions.contains("Output at most two short sentences."))
+        XCTAssertTrue(parts.instructions.contains("Never stop mid-sentence."))
         XCTAssertTrue(parts.instructions.contains("Use provided context"))
         XCTAssertTrue(parts.instructions.contains("never refuse"))
     }
@@ -106,6 +110,9 @@ final class PromptBuilderTests: XCTestCase {
         XCTAssertTrue(parts.input.contains("Context quality: selected occurrence available"))
         XCTAssertTrue(parts.input.contains("Selected occurrence context:\nA bat flew out of the cave at night."))
         XCTAssertTrue(parts.input.contains("Constraint: explain in 1-2 sentences."))
+        XCTAssertTrue(parts.input.contains("minimum useful explanation"))
+        XCTAssertTrue(parts.input.contains("complete sentence, not a fragment"))
+        XCTAssertTrue(parts.input.contains("most likely meaning first"))
     }
 
     func testIdentifierIntentForCodeLikeSelection() {
@@ -202,5 +209,23 @@ final class PromptBuilderTests: XCTestCase {
         )
         XCTAssertEqual(PromptBuilder.inferExpertise(from: context), .beginner)
         XCTAssertEqual(PromptBuilder.inferTone(from: context), .friendly)
+    }
+
+    func testBuildChatSystemMessageIncludesSourceAndAmbiguityRule() {
+        let context = ContextInfo(
+            selectedText: "overlayPhase",
+            appName: "Xcode",
+            windowTitle: "Editor",
+            surroundingLines: "if session.phase == .result { ... }",
+            selectionBounds: nil,
+            selectedOccurrenceContext: "if session.phase == .result { ... }"
+        )
+
+        let prompt = PromptBuilder.buildChatSystemMessage(context: context)
+
+        XCTAssertTrue(prompt.contains("first sentence"))
+        XCTAssertTrue(prompt.contains("best guess"))
+        XCTAssertTrue(prompt.contains("Source context: Xcode"))
+        XCTAssertTrue(prompt.contains("Selected text:\noverlayPhase"))
     }
 }

@@ -6,12 +6,14 @@ import AppKit
 final class AppState {
     typealias ContextProvider = @Sendable (_ policy: AccessibilityCapture.CapturePolicy, _ budgetMs: Int?) -> ContextInfo
     typealias ClientFactory = (_ apiKey: String, _ model: String) -> any StreamingClient
+    typealias ClipboardWriter = (_ text: String) -> Bool
 
     enum OverlayPhase: Equatable {
         case permissionRequired
         case loadingPreToken
         case loadingStreaming
         case result
+        case chat
         case error
         case empty
     }
@@ -48,16 +50,128 @@ final class AppState {
         let didStreamIncrementally: Bool
     }
 
-    var explanationText: String = ""
-    var isLoading: Bool = false
+    struct SessionDiagnostic {
+        let sessionID: UUID
+        let phase: SessionPhase
+        let depth: Int
+        let metrics: RequestMetrics?
+        let errorMessage: String?
+        let stopReason: CompletionStopReason?
+        let completionGateEvaluated: Bool?
+        let completionGatePassed: Bool?
+        let repairAttempted: Bool?
+        let repairSucceeded: Bool?
+        let repairTimedOut: Bool?
+        let metFirstTokenBudget: Bool?
+        let metTotalLatencyBudget: Bool?
+        let endedAt: Date
+    }
+
+    enum SessionPhase: Equatable {
+        case permissionRequired
+        case loadingPreToken
+        case loadingStreaming
+        case result
+        case chat
+        case error
+        case empty
+
+        var overlayPhase: OverlayPhase {
+            switch self {
+            case .permissionRequired:
+                return .permissionRequired
+            case .loadingPreToken:
+                return .loadingPreToken
+            case .loadingStreaming:
+                return .loadingStreaming
+            case .result:
+                return .result
+            case .chat:
+                return .chat
+            case .error:
+                return .error
+            case .empty:
+                return .empty
+            }
+        }
+
+        var isLoading: Bool {
+            self == .loadingPreToken || self == .loadingStreaming
+        }
+    }
+
+    struct OverlaySession {
+        let id: UUID
+        var phase: SessionPhase
+        var depth: Int
+        var context: ContextInfo?
+        var displayText: String
+        var errorMessage: String?
+        var mode: ExplanationMode
+        var metrics: RequestMetrics?
+        let startedAt: Date
+    }
+
+    private(set) var session = OverlaySession(
+        id: UUID(),
+        phase: .empty,
+        depth: 0,
+        context: nil,
+        displayText: "",
+        errorMessage: nil,
+        mode: .learn,
+        metrics: nil,
+        startedAt: Date()
+    )
+
+    var explanationText: String {
+        get { session.displayText }
+        set {
+            session.displayText = newValue
+            if session.phase == .loadingPreToken, hasMeaningfulText(newValue) {
+                session.phase = .loadingStreaming
+            }
+        }
+    }
+
+    var isLoading: Bool {
+        session.phase.isLoading
+    }
+
     var isOverlayVisible: Bool = false
-    var currentMode: ExplanationMode = .learn
-    var currentDepth: Int = 0
-    var currentContext: ContextInfo?
-    var errorMessage: String?
-    var permissionGranted: Bool = false
+    var currentMode: ExplanationMode {
+        get { session.mode }
+        set { session.mode = newValue }
+    }
+    var currentDepth: Int {
+        get { session.depth }
+        set { session.depth = newValue }
+    }
+    var currentContext: ContextInfo? {
+        get { session.context }
+        set { session.context = newValue }
+    }
+    var errorMessage: String? {
+        get { session.errorMessage }
+        set {
+            session.errorMessage = newValue
+            if newValue != nil {
+                session.phase = .error
+            }
+        }
+    }
+    var permissionGranted: Bool = false {
+        didSet {
+            updateSessionPhaseForPermissionChange()
+        }
+    }
     var generationStage: GenerationStage = .idle
-    var lastRequestMetrics: RequestMetrics?
+    var lastRequestMetrics: RequestMetrics? {
+        get { session.metrics }
+        set { session.metrics = newValue }
+    }
+    private(set) var recentSessionDiagnostics: [SessionDiagnostic] = []
+    var chatSession: ChatSession?
 
     let permissionManager = PermissionManager()
     let explanationBuffer = ExplanationBuffer()
@@ -74,8 +188,10 @@ final class AppState {
 
     private let contextProvider: ContextProvider
     private let clientFactory: ClientFactory
+    private let clipboardWriter: ClipboardWriter
     private let refreshPermissionOnHotkey: Bool
     private var currentStreamTask: Task<Void, Never>?
+    private var currentChatStreamTask: Task<Void, Never>?
     private var currentCaptureTask: Task<ContextInfo, Never>?
     private var contextEnrichmentTask: Task<Void, Never>?
     private var enrichedContextCache: ContextInfo?
@@ -93,22 +209,7 @@ final class AppState {
     )
 
     var overlayPhase: OverlayPhase {
-        if errorMessage != nil {
-            return .error
-        }
-        if !permissionGranted && !hasMeaningfulExplanationText {
-            return .permissionRequired
-        }
-        if isLoading && !hasMeaningfulExplanationText {
-            return .loadingPreToken
-        }
-        if isLoading && hasMeaningfulExplanationText {
-            return .loadingStreaming
-        }
-        if hasMeaningfulExplanationText {
-            return .result
-        }
-        return .empty
+        session.phase.overlayPhase
     }
 
     var hasMeaningfulExplanationText: Bool {
@@ -127,12 +228,19 @@ final class AppState {
         clientFactory: @escaping ClientFactory = { apiKey, model in
             OpenAIClient(apiKey: apiKey, model: model)
         },
+        clipboardWriter: @escaping ClipboardWriter = { text in
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            return pasteboard.setString(text, forType: .string)
+        },
         refreshPermissionOnHotkey: Bool = true
     ) {
         self.contextProvider = contextProvider
         self.clientFactory = clientFactory
+        self.clipboardWriter = clipboardWriter
         self.refreshPermissionOnHotkey = refreshPermissionOnHotkey
         permissionGranted = permissionManager.isAccessibilityGranted
+        session = Self.initialSession(permissionGranted: permissionGranted)
         permissionManager.onPermissionChanged = { [weak self] granted in
             Task { @MainActor in
                 self?.permissionGranted = granted
@@ -143,7 +251,66 @@ final class AppState {
         }
     }
 
+    private static func initialSession(permissionGranted: Bool) -> OverlaySession {
+        OverlaySession(
+            id: UUID(),
+            phase: permissionGranted ? .empty : .permissionRequired,
+            depth: 0,
+            context: nil,
+            displayText: "",
+            errorMessage: nil,
+            mode: .learn,
+            metrics: nil,
+            startedAt: Date()
+        )
+    }
+
+    private func resetSession(
+        id: UUID = UUID(),
+        phase: SessionPhase,
+        depth: Int,
+        context: ContextInfo? = nil,
+        displayText: String = "",
+        errorMessage: String? = nil,
+        mode: ExplanationMode = .learn,
+        metrics: RequestMetrics? = nil,
+        startedAt: Date = Date()
+    ) {
+        session = OverlaySession(
+            id: id,
+            phase: phase,
+            depth: depth,
+            context: context,
+            displayText: displayText,
+            errorMessage: errorMessage,
+            mode: mode,
+            metrics: metrics,
+            startedAt: startedAt
+        )
+    }
+
+    private func phaseAfterLoadingStops() -> SessionPhase {
+        if errorMessage != nil {
+            return .error
+        }
+        if hasMeaningfulExplanationText {
+            return .result
+        }
+        return permissionGranted ? .empty : .permissionRequired
+    }
+
+    private func updateSessionPhaseForPermissionChange() {
+        guard !session.phase.isLoading else { return }
+        guard !hasMeaningfulExplanationText, errorMessage == nil else { return }
+        session.phase = permissionGranted ? .empty : .permissionRequired
+    }
+
     func handleHotkey(isDoublePress: Bool) {
+        // Protect in-flight generation from accidental re-trigger.
+        if isLoading {
+            return
+        }
+
         if isDoublePress, isOverlayVisible, let lastExplanation = explanationBuffer.last() {
             goDeeper(previousExplanation: lastExplanation)
             return
@@ -163,9 +330,13 @@ final class AppState {
 
         guard permissionGranted else {
             streamLifecycleState = .idle
-            isLoading = false
             generationStage = .idle
             currentContext = nil
+            session.phase = .permissionRequired
+            session.displayText = ""
+            session.errorMessage = nil
+            session.metrics = nil
+            session.mode = .learn
             let anchorPoint = CursorPositionProvider.mouseLocation()
             panelController?.show(at: anchorPoint)
             isOverlayVisible = true
@@ -258,16 +429,18 @@ final class AppState {
     private func goDeeper(previousExplanation: StreamingExplanation) {
         let triggerStartedAt = Date()
         let nextDepth = min(currentDepth + 1, 3)
+        let existingContext = currentContext
         prepareForRequest(depth: nextDepth)
 
         var captureLatencyMs: Int?
         let context: ContextInfo
         if let cached = enrichedContextCache,
-           selectionsLikelyMatch(currentContext?.selectedText ?? previousExplanation.context.selectedText, cached.selectedText) {
-            context = mergeContext(primary: currentContext ?? previousExplanation.context, enriched: cached)
+           selectionsLikelyMatch(existingContext?.selectedText ?? previousExplanation.context.selectedText, cached.selectedText) {
+            context = mergeContext(primary: existingContext ?? previousExplanation.context, enriched: cached)
             currentContext = context
-        } else if let existing = currentContext {
+        } else if let existing = existingContext {
             context = existing
+            currentContext = existing
         } else {
             let captureStartedAt = Date()
             let captured = contextProvider(.full, nil)
@@ -294,20 +467,31 @@ final class AppState {
 
     private func prepareForRequest(depth: Int) {
         currentStreamTask?.cancel()
+        currentChatStreamTask?.cancel()
+        currentChatStreamTask = nil
         currentCaptureTask?.cancel()
         currentCaptureTask = nil
         contextEnrichmentTask?.cancel()
         contextEnrichmentTask = nil
+        if chatSession != nil {
+            chatSession = nil
+            panelController?.deactivateFromChat()
+        }
         activeRequestID = UUID()
         if depth == 1 {
             enrichedContextCache = nil
         }
-        currentDepth = depth
-        currentMode = .learn
-        explanationText = ""
-        errorMessage = nil
-        lastRequestMetrics = nil
-        isLoading = true
+        resetSession(
+            id: activeRequestID,
+            phase: .loadingPreToken,
+            depth: depth,
+            context: nil,
+            displayText: "",
+            errorMessage: nil,
+            mode: .learn,
+            metrics: nil,
+            startedAt: Date()
+        )
         generationStage = .buildingPrompt
         streamLifecycleState = .streaming
     }
@@ -350,6 +534,7 @@ final class AppState {
             var didFinalize = false
             var firstDeltaAt: Date?
             var deltaEventCount = 0
+            var streamStopReason: CompletionStopReason = .unknown
 
             @MainActor
             func resolveModeIfNeeded(force: Bool) {
@@ -393,28 +578,78 @@ final class AppState {
             }
 
             @MainActor
-            func finalizeSuccess() {
+            func finalizeSuccess() async {
                 guard !didFinalize else { return }
                 didFinalize = true
 
                 resolveModeIfNeeded(force: true)
-                let displayText = self.normalizedDisplayText(from: fullText)
+                var displayText = self.normalizedDisplayText(from: fullText)
+                var completionGateEvaluated = false
+                var completionGatePassed = true
+                var repairAttempted = false
+                var repairSucceeded = false
+                var repairTimedOut = false
+                let forceRepairOnStop = streamStopReason == .stop
+                    && self.shouldForceRepairForStopCompletion(displayText)
+
+                if depth <= 1,
+                   (streamStopReason.shouldEvaluateCompletionGate || forceRepairOnStop) {
+                    completionGateEvaluated = true
+                    completionGatePassed = CompletionQualityGate.isComplete(displayText)
+
+                    if !completionGatePassed, !Task.isCancelled {
+                        repairAttempted = true
+                        let repairResult = await self.repairDepth1ExplanationIfNeeded(
+                            partialExplanation: displayText,
+                            context: context,
+                            client: client
+                        )
+                        repairTimedOut = repairResult?.timedOut == true
+                        if let repaired = repairResult?.text {
+                            repairSucceeded = true
+                            fullText = repaired
+                            displayText = repaired
+                            self.explanationText = displayText
+                            completionGatePassed = CompletionQualityGate.isComplete(displayText)
+                        }
+                    }
+                }
                 publishRequestMetrics(text: displayText)
 
                 if !self.hasMeaningfulText(displayText) {
                     self.errorMessage = "No explanation returned. Verify API key, model, and network access."
-                    self.isLoading = false
+                    self.session.phase = .error
                     self.generationStage = .idle
                     self.streamLifecycleState = .failed
+                    self.recordSessionDiagnostic(
+                        phase: .error,
+                        errorMessage: self.errorMessage,
+                        stopReason: streamStopReason,
+                        completionGateEvaluated: completionGateEvaluated,
+                        completionGatePassed: completionGatePassed,
+                        repairAttempted: repairAttempted,
+                        repairSucceeded: repairSucceeded,
+                        repairTimedOut: repairTimedOut
+                    )
                     return
                 }
 
                 self.currentMode = resolvedMode
                 self.explanationText = displayText
                 self.errorMessage = nil
-                self.isLoading = false
+                self.session.phase = .result
                 self.generationStage = .idle
                 self.streamLifecycleState = .completed
+                self.recordSessionDiagnostic(
+                    phase: .result,
+                    errorMessage: nil,
+                    stopReason: streamStopReason,
+                    completionGateEvaluated: completionGateEvaluated,
+                    completionGatePassed: completionGatePassed,
+                    repairAttempted: repairAttempted,
+                    repairSucceeded: repairSucceeded,
+                    repairTimedOut: repairTimedOut
+                )
 
                 let explanation = StreamingExplanation(
                     fullText: displayText,
@@ -433,9 +668,13 @@ final class AppState {
                 let displayText = self.normalizedDisplayText(from: fullText.isEmpty ? pendingHeader : fullText)
                 publishRequestMetrics(text: displayText)
                 self.errorMessage = self.decorateErrorMessage(message, settings: settings)
-                self.isLoading = false
+                self.session.phase = .error
                 self.generationStage = .idle
                 self.streamLifecycleState = .failed
+                self.recordSessionDiagnostic(
+                    phase: .error,
+                    errorMessage: self.errorMessage
+                )
             }
 
             do {
@@ -467,13 +706,14 @@ final class AppState {
                             resolveModeIfNeeded(force: false)
                         }
 
-                    case .done:
+                    case .done(let reason):
+                        streamStopReason = reason
                         // Yield one turn so the latest streamed text paints before finalization
                         // when providers emit delta+done back-to-back.
                         if firstDeltaAt != nil {
                             await Task.yield()
                         }
-                        finalizeSuccess()
+                        await finalizeSuccess()
 
                     case .error(let message):
                         finalizeFailure(message: message)
@@ -481,7 +721,7 @@ final class AppState {
                 }
 
                 if !Task.isCancelled && !didFinalize {
-                    finalizeSuccess()
+                    await finalizeSuccess()
                 }
             } catch {
                 if !Task.isCancelled {
@@ -544,9 +784,43 @@ final class AppState {
 
     private func failRequest(_ message: String) {
         errorMessage = message
-        isLoading = false
+        session.phase = .error
         generationStage = .idle
         streamLifecycleState = .failed
+        recordSessionDiagnostic(phase: .error, errorMessage: message)
+    }
+
+    private func recordSessionDiagnostic(
+        phase: SessionPhase,
+        errorMessage: String?,
+        stopReason: CompletionStopReason? = nil,
+        completionGateEvaluated: Bool? = nil,
+        completionGatePassed: Bool? = nil,
+        repairAttempted: Bool? = nil,
+        repairSucceeded: Bool? = nil,
+        repairTimedOut: Bool? = nil
+    ) {
+        let metrics = lastRequestMetrics
+        let diagnostic = SessionDiagnostic(
+            sessionID: session.id,
+            phase: phase,
+            depth: currentDepth,
+            metrics: metrics,
+            errorMessage: errorMessage,
+            stopReason: stopReason,
+            completionGateEvaluated: completionGateEvaluated,
+            completionGatePassed: completionGatePassed,
+            repairAttempted: repairAttempted,
+            repairSucceeded: repairSucceeded,
+            repairTimedOut: repairTimedOut,
+            metFirstTokenBudget: metrics?.firstTokenLatencyMs.map { $0 <= Constants.firstTokenTargetMs },
+            metTotalLatencyBudget: metrics.map { $0.totalLatencyMs <= Constants.totalLatencySoftBudgetMs },
+            endedAt: Date()
+        )
+        recentSessionDiagnostics.append(diagnostic)
+        if recentSessionDiagnostics.count > Constants.sessionDiagnosticsCapacity {
+            recentSessionDiagnostics.removeFirst(recentSessionDiagnostics.count - Constants.sessionDiagnosticsCapacity)
+        }
     }
 
     private func logLatencyMetricsIfNeeded(_ metrics: RequestMetrics) {
@@ -568,6 +842,156 @@ final class AppState {
             return "Invalid API key. Update it in Settings."
         }
         return message
+    }
+
+    private struct RepairAttemptResult {
+        let text: String?
+        let timedOut: Bool
+    }
+
+    private func repairDepth1ExplanationIfNeeded(
+        partialExplanation: String,
+        context: ContextInfo,
+        client: any StreamingClient
+    ) async -> RepairAttemptResult? {
+        let partial = partialExplanation.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard hasMeaningfulText(partial) else { return nil }
+        let continuationTail = repairContextTail(
+            from: partial,
+            maxCharacters: Constants.repairContextTailCharacters
+        )
+
+        let instructions = """
+        You are Clarify.
+        Continue and finish the explanation from where it stops.
+        Keep meaning and tone consistent with the existing text.
+        Keep it simple, concise, and beginner-friendly.
+        Return one or two short complete sentences total for the continuation.
+        Do not include a [MODE:] header.
+        """
+
+        var inputParts: [String] = []
+        if let selectedText = context.selectedText?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !selectedText.isEmpty {
+            inputParts.append("Selected text:\n\(selectedText)")
+        }
+        if let nearby = context.selectedOccurrenceContext?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !nearby.isEmpty {
+            inputParts.append("Nearby context:\n\(nearby)")
+        } else if let surrounding = context.surroundingLines?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !surrounding.isEmpty {
+            inputParts.append("Nearby context:\n\(surrounding)")
+        }
+        inputParts.append("Explanation so far (continue from this tail):\n\(continuationTail)")
+        inputParts.append("Task: continue and finish the explanation.")
+
+        let input = inputParts.joined(separator: "\n\n")
+        return await runRepairWithTimeout(
+            instructions: instructions,
+            input: input,
+            client: client
+        )
+    }
+
+    private func runRepairWithTimeout(
+        instructions: String,
+        input: String,
+        client: any StreamingClient
+    ) async -> RepairAttemptResult {
+        actor ResumeGate {
+            private var didResume = false
+
+            func markIfNeeded() -> Bool {
+                if didResume {
+                    return false
+                }
+                didResume = true
+                return true
+            }
+        }
+
+        let gate = ResumeGate()
+
+        return await withCheckedContinuation { continuation in
+            let repairTask = Task {
+                let text = await self.collectRepairText(
+                    instructions: instructions,
+                    input: input,
+                    client: client
+                )
+                guard await gate.markIfNeeded() else { return }
+                continuation.resume(returning: RepairAttemptResult(text: text, timedOut: false))
+            }
+
+            Task {
+                try? await Task.sleep(for: .milliseconds(Constants.depth1RepairTimeoutMs))
+                guard await gate.markIfNeeded() else { return }
+                repairTask.cancel()
+                continuation.resume(returning: RepairAttemptResult(text: nil, timedOut: true))
+            }
+        }
+    }
+
+    private func collectRepairText(
+        instructions: String,
+        input: String,
+        client: any StreamingClient
+    ) async -> String? {
+        do {
+            let stream = try await client.stream(
+                instructions: instructions,
+                input: input,
+                maxOutputTokens: Constants.depth1RepairMaxTokens
+            )
+            var repaired = ""
+            for try await event in stream {
+                switch event {
+                case .delta(let text):
+                    repaired += text
+                case .done:
+                    break
+                case .error:
+                    return nil
+                }
+            }
+
+            repaired = normalizedDisplayText(from: repaired)
+            if let parsed = Self.parseModePrefix(from: repaired) {
+                repaired = normalizedDisplayText(from: parsed.remainder)
+            }
+            guard hasMeaningfulText(repaired) else { return nil }
+            return repaired
+        } catch {
+            return nil
+        }
+    }
+
+    private func shouldForceRepairForStopCompletion(_ text: String) -> Bool {
+        let reasons = CompletionQualityGate.reasons(for: text)
+        return reasons.contains(.danglingSuffix)
+            || reasons.contains(.unmatchedDelimiter)
+            || reasons.contains(.unmatchedQuote)
+    }
+
+    func repairContextTail(from text: String, maxCharacters: Int) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > maxCharacters else { return trimmed }
+
+        let hardStart = trimmed.index(trimmed.endIndex, offsetBy: -maxCharacters)
+        var boundaryStart = hardStart
+        while boundaryStart > trimmed.startIndex {
+            let previous = trimmed.index(before: boundaryStart)
+            if trimmed[previous].isWhitespace {
+                break
+            }
+            boundaryStart = previous
+        }
+
+        var tail = String(trimmed[boundaryStart...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        if tail.isEmpty {
+            tail = String(trimmed[hardStart...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return tail
     }
 
     private func hasMeaningfulText(_ text: String) -> Bool {
@@ -619,9 +1043,10 @@ final class AppState {
 
     private func showNoSelectionError() {
         errorMessage = "Select some text first"
-        isLoading = false
+        session.phase = .error
         generationStage = .idle
         streamLifecycleState = .failed
+        recordSessionDiagnostic(phase: .error, errorMessage: errorMessage)
         let anchorPoint = CursorPositionProvider.mouseLocation()
         panelController?.show(at: anchorPoint)
         isOverlayVisible = true
@@ -635,11 +1060,18 @@ final class AppState {
     func dismiss() {
         currentStreamTask?.cancel()
         currentStreamTask = nil
+        currentChatStreamTask?.cancel()
+        currentChatStreamTask = nil
         currentCaptureTask?.cancel()
         currentCaptureTask = nil
         contextEnrichmentTask?.cancel()
         contextEnrichmentTask = nil
-        isLoading = false
+        if chatSession != nil {
+            chatSession?.cancelStreaming()
+            chatSession = nil
+            panelController?.deactivateFromChat()
+        }
+        session.phase = phaseAfterLoadingStops()
         generationStage = .idle
         panelController?.hide()
         isOverlayVisible = false
@@ -654,7 +1086,7 @@ final class AppState {
         currentCaptureTask = nil
         contextEnrichmentTask?.cancel()
         contextEnrichmentTask = nil
-        isLoading = false
+        session.phase = phaseAfterLoadingStops()
         generationStage = .idle
         streamLifecycleState = .idle
     }
@@ -680,6 +1112,192 @@ final class AppState {
     func requestDeeperExplanation() {
         guard let lastExplanation = explanationBuffer.last() else { return }
         goDeeper(previousExplanation: lastExplanation)
+    }
+
+    func enterChatMode() {
+        guard overlayPhase == .result, hasMeaningfulExplanationText else { return }
+
+        if chatSession == nil {
+            let fallbackContext = ContextInfo(
+                selectedText: currentContext?.selectedText,
+                appName: currentContext?.appName,
+                windowTitle: currentContext?.windowTitle,
+                surroundingLines: currentContext?.surroundingLines,
+                selectionBounds: currentContext?.selectionBounds,
+                selectedOccurrenceContext: currentContext?.selectedOccurrenceContext,
+                sourceURL: currentContext?.sourceURL,
+                sourceHint: currentContext?.sourceHint,
+                isConversationContext: currentContext?.isConversationContext ?? false,
+                isPartialContext: currentContext?.isPartialContext ?? false
+            )
+            chatSession = ChatSession(context: fallbackContext, explanation: explanationText)
+        }
+
+        session.phase = .chat
+        panelController?.activateForChat()
+    }
+
+    func exitChatMode() {
+        guard overlayPhase == .chat else { return }
+        stopChatStreaming(removeEmptyTrailingAssistant: true)
+        session.phase = .result
+        panelController?.deactivateFromChat()
+    }
+
+    func sendChatMessage() {
+        guard overlayPhase == .chat, let chatSession else { return }
+        guard !chatSession.isStreaming else { return }
+
+        guard let settings = settingsManager else {
+            chatSession.appendAssistantMessage("Settings not available.")
+            return
+        }
+
+        guard !settings.apiKey.isEmpty else {
+            chatSession.appendAssistantMessage("API key not set. Add it in Settings first.")
+            return
+        }
+
+        guard chatSession.appendUserMessageFromInput() != nil else { return }
+        _ = chatSession.appendAssistantPlaceholder()
+
+        let messages = chatSession.buildAPIMessages()
+        let client = clientFactory(settings.apiKey, settings.modelName)
+
+        currentChatStreamTask?.cancel()
+        currentChatStreamTask = Task { @MainActor in
+            var didFinalize = false
+
+            @MainActor
+            func finalize(removeEmptyTrailingAssistant: Bool) {
+                guard !didFinalize else { return }
+                didFinalize = true
+                self.currentChatStreamTask = nil
+                self.chatSession?.finishStreaming()
+                if removeEmptyTrailingAssistant {
+                    self.chatSession?.removeEmptyTrailingAssistantMessage()
+                }
+            }
+
+            do {
+                let stream = try await client.streamChat(
+                    messages: messages,
+                    maxOutputTokens: Constants.chatMaxOutputTokens
+                )
+
+                for try await event in stream {
+                    if Task.isCancelled { return }
+                    switch event {
+                    case .delta(let text):
+                        self.chatSession?.appendDelta(text)
+                    case .done:
+                        finalize(removeEmptyTrailingAssistant: true)
+                    case .error(let message):
+                        self.chatSession?.appendDelta("\n\nError: \(message)")
+                        finalize(removeEmptyTrailingAssistant: true)
+                    }
+                }
+
+                if !Task.isCancelled {
+                    finalize(removeEmptyTrailingAssistant: true)
+                }
+            } catch {
+                if Task.isCancelled { return }
+                self.chatSession?.appendDelta("\n\nError: \(error.localizedDescription)")
+                finalize(removeEmptyTrailingAssistant: true)
+            }
+        }
+    }
+
+    func stopChatStreaming() {
+        stopChatStreaming(removeEmptyTrailingAssistant: true)
+    }
+
+    private func stopChatStreaming(removeEmptyTrailingAssistant: Bool) {
+        currentChatStreamTask?.cancel()
+        currentChatStreamTask = nil
+        chatSession?.cancelStreaming()
+        if removeEmptyTrailingAssistant {
+            chatSession?.removeEmptyTrailingAssistantMessage()
+        }
+    }
+
+    var canRequestDeeperExplanation: Bool {
+        overlayPhase == .result && currentDepth < 3 && explanationBuffer.last() != nil
+    }
+
+    var canCopyCurrentExplanation: Bool {
+        overlayPhase == .result && hasMeaningfulExplanationText
+    }
+
+    var shouldDismissOnOutsideClick: Bool {
+        switch overlayPhase {
+        case .loadingPreToken, .loadingStreaming, .result, .chat:
+            return false
+        case .permissionRequired, .error, .empty:
+            return true
+        }
+    }
+
+    @discardableResult
+    func copyCurrentExplanation() -> Bool {
+        guard canCopyCurrentExplanation else { return false }
+        let value = explanationText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return false }
+        return clipboardWriter(value)
+    }
+
+    @discardableResult
+    func handlePanelKeyDown(_ event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        return handlePanelKeyDown(
+            keyCode: event.keyCode,
+            flags: flags,
+            charactersIgnoringModifiers: event.charactersIgnoringModifiers
+        )
+    }
+
+    @discardableResult
+    func handleGlobalPanelKeyDown(keyCode: UInt16, flags: CGEventFlags) -> Bool {
+        let eventFlags = NSEvent.ModifierFlags(rawValue: UInt(flags.rawValue))
+            .intersection(.deviceIndependentFlagsMask)
+        return handlePanelKeyDown(
+            keyCode: keyCode,
+            flags: eventFlags,
+            charactersIgnoringModifiers: nil
+        )
+    }
+
+    private func handlePanelKeyDown(
+        keyCode: UInt16,
+        flags: NSEvent.ModifierFlags,
+        charactersIgnoringModifiers: String?
+    ) -> Bool {
+        if keyCode == 53 {
+            if overlayPhase == .chat {
+                exitChatMode()
+            } else {
+                dismiss()
+            }
+            return true
+        }
+
+        if flags.isEmpty, keyCode == 36 {
+            if overlayPhase == .result {
+                enterChatMode()
+                return true
+            }
+            return false
+        }
+
+        let normalizedChars = charactersIgnoringModifiers?.lowercased()
+        if flags == [.command],
+           (keyCode == 8 || normalizedChars == "c"),
+           canCopyCurrentExplanation {
+            return copyCurrentExplanation()
+        }
+
+        return false
     }
 
     var shouldRecommendStableInstall: Bool {
@@ -713,7 +1331,9 @@ final class AppState {
                 Task { @MainActor in
                     if let error {
                         self.errorMessage = "Installed to ~/Applications but failed to relaunch: \(error.localizedDescription)"
+                        self.session.phase = .error
                         self.streamLifecycleState = .failed
+                        self.recordSessionDiagnostic(phase: .error, errorMessage: self.errorMessage)
                         return
                     }
                     // Give the relaunched app a brief moment to initialize before closing the debug run.
@@ -723,8 +1343,9 @@ final class AppState {
             }
         } catch {
             errorMessage = "Failed to install stable app to ~/Applications: \(error.localizedDescription)"
-            isLoading = false
+            session.phase = .error
             streamLifecycleState = .failed
+            recordSessionDiagnostic(phase: .error, errorMessage: errorMessage)
         }
     }
 }
@@ -745,5 +1366,11 @@ private extension ContextInfo {
         let surrounding = (surroundingLines ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let occurrence = (selectedOccurrenceContext ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         return !surrounding.isEmpty || !occurrence.isEmpty
+    }
+}
+
+private extension CompletionStopReason {
+    var shouldEvaluateCompletionGate: Bool {
+        self == .length || self == .unknown
     }
 }

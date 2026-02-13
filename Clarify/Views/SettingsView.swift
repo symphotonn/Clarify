@@ -91,6 +91,12 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
+
+                if let hotkeyIssue = settings.hotkeyRegistrationIssue {
+                    Text(hotkeyIssue)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
             }
 
             DisclosureGroup("Advanced", isExpanded: $showAdvanced) {
@@ -123,6 +129,7 @@ struct SettingsView: View {
         stopHotkeyCapture()
         hotkeyCaptureError = nil
         isRecordingHotkey = true
+        setHotkeyCaptureActive(true)
 
         hotkeyCaptureMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard isRecordingHotkey else { return event }
@@ -152,11 +159,22 @@ struct SettingsView: View {
     }
 
     private func stopHotkeyCapture() {
+        let wasRecording = isRecordingHotkey
         if let hotkeyCaptureMonitor {
             NSEvent.removeMonitor(hotkeyCaptureMonitor)
             self.hotkeyCaptureMonitor = nil
         }
         isRecordingHotkey = false
+        if wasRecording {
+            setHotkeyCaptureActive(false)
+        }
+    }
+
+    private func setHotkeyCaptureActive(_ isActive: Bool) {
+        NotificationCenter.default.post(
+            name: .clarifyHotkeyCaptureStateChanged,
+            object: isActive
+        )
     }
 
     private func apiConfigurationStatus(_ settings: SettingsManager) -> String {
@@ -203,4 +221,8 @@ struct SettingsView: View {
             }
         }
     }
+}
+
+private extension Notification.Name {
+    static let clarifyHotkeyCaptureStateChanged = Notification.Name("clarify.hotkeyCaptureStateChanged")
 }

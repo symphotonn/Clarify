@@ -35,13 +35,35 @@ final class OpenAIClient: StreamingClient, Sendable {
         input: String,
         maxOutputTokens: Int?
     ) async throws -> AsyncThrowingStream<StreamEvent, Error> {
+        let messages = [
+            ChatMessage(role: "system", content: instructions),
+            ChatMessage(role: "user", content: input)
+        ]
+        return try await streamChat(messages: messages, maxOutputTokens: maxOutputTokens)
+    }
+
+    func streamChat(
+        messages: [ChatMessage],
+        maxOutputTokens: Int?
+    ) async throws -> AsyncThrowingStream<StreamEvent, Error> {
         let request = ChatCompletionRequest(
             model: model,
-            instructions: instructions,
-            input: input,
+            messages: messages,
             stream: true,
             maxTokens: maxOutputTokens
         )
+        return try await performStream(
+            request: request,
+            messages: messages,
+            maxOutputTokens: maxOutputTokens
+        )
+    }
+
+    private func performStream(
+        request: ChatCompletionRequest,
+        messages: [ChatMessage],
+        maxOutputTokens: Int?
+    ) async throws -> AsyncThrowingStream<StreamEvent, Error> {
         let body = try JSONEncoder().encode(request)
         let urlRequest = makeURLRequest(body: body, timeout: Constants.requestTimeout)
 
@@ -51,8 +73,7 @@ final class OpenAIClient: StreamingClient, Sendable {
         } catch {
             if Self.isTimeoutError(error),
                let fallback = try await fetchNonStreamingFallbackText(
-                    instructions: instructions,
-                    input: input,
+                    messages: messages,
                     maxOutputTokens: maxOutputTokens
                ) {
                 return Self.oneShotStream(text: fallback)
@@ -76,10 +97,40 @@ final class OpenAIClient: StreamingClient, Sendable {
         return AsyncThrowingStream { continuation in
             let parseTask = Task {
                 let parser = SSEParser()
-                var sawDone = false
+                var terminalStopReason: CompletionStopReason?
                 var didEmitDone = false
                 var didEmitText = false
                 var didEmitError = false
+
+                func mergedStopReason(
+                    current: CompletionStopReason?,
+                    incoming: CompletionStopReason
+                ) -> CompletionStopReason {
+                    let rank: (CompletionStopReason) -> Int = { reason in
+                        switch reason {
+                        case .stop, .length, .unknown:
+                            return 3
+                        case .fallback:
+                            return 2
+                        case .doneMarker:
+                            return 1
+                        }
+                    }
+
+                    guard let current else { return incoming }
+                    return rank(incoming) >= rank(current) ? incoming : current
+                }
+
+                func finalStopReason(from raw: CompletionStopReason?) -> CompletionStopReason {
+                    switch raw {
+                    case .doneMarker:
+                        return .unknown
+                    case .some(let reason):
+                        return reason
+                    case .none:
+                        return .unknown
+                    }
+                }
 
                 func yield(_ event: StreamEvent) {
                     switch event {
@@ -90,8 +141,8 @@ final class OpenAIClient: StreamingClient, Sendable {
                     case .error(let message):
                         didEmitError = true
                         continuation.yield(.error(message))
-                    case .done:
-                        sawDone = true
+                    case .done(let reason):
+                        terminalStopReason = mergedStopReason(current: terminalStopReason, incoming: reason)
                     }
                 }
 
@@ -115,18 +166,18 @@ final class OpenAIClient: StreamingClient, Sendable {
 
                     if !Task.isCancelled && !didEmitText && !didEmitError {
                         if let fallback = try await self.fetchNonStreamingFallbackText(
-                            instructions: instructions,
-                            input: input,
+                            messages: messages,
                             maxOutputTokens: maxOutputTokens
                         ) {
                             didEmitText = true
+                            terminalStopReason = mergedStopReason(current: terminalStopReason, incoming: .fallback)
                             continuation.yield(.delta(fallback))
                         }
                     }
 
-                    if !didEmitDone && !didEmitError && (sawDone || didEmitText) {
+                    if !didEmitDone && !didEmitError && (terminalStopReason != nil || didEmitText) {
                         didEmitDone = true
-                        continuation.yield(.done)
+                        continuation.yield(.done(finalStopReason(from: terminalStopReason)))
                     }
 
                     continuation.finish()
@@ -134,7 +185,7 @@ final class OpenAIClient: StreamingClient, Sendable {
                     if !Task.isCancelled {
                         if Self.isTimeoutError(error), didEmitText {
                             if !didEmitDone && !didEmitError {
-                                continuation.yield(.done)
+                                continuation.yield(.done(finalStopReason(from: terminalStopReason)))
                             }
                             continuation.finish()
                             return
@@ -153,15 +204,13 @@ final class OpenAIClient: StreamingClient, Sendable {
     }
 
     private func fetchNonStreamingFallbackText(
-        instructions: String,
-        input: String,
+        messages: [ChatMessage],
         maxOutputTokens: Int? = nil,
         timeout: TimeInterval = Constants.fallbackRequestTimeout
     ) async throws -> String? {
         let request = ChatCompletionRequest(
             model: model,
-            instructions: instructions,
-            input: input,
+            messages: messages,
             stream: false,
             maxTokens: maxOutputTokens
         )
@@ -191,7 +240,7 @@ final class OpenAIClient: StreamingClient, Sendable {
     private static func oneShotStream(text: String) -> AsyncThrowingStream<StreamEvent, Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(.delta(text))
-            continuation.yield(.done)
+            continuation.yield(.done(.fallback))
             continuation.finish()
         }
     }

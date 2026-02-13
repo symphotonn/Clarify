@@ -23,8 +23,8 @@ final class SSEParserTests: XCTestCase {
         let events = parser.parse(chunk)
 
         XCTAssertEqual(events.count, 1)
-        if case .done = events.first {
-            // Pass
+        if case .done(let reason) = events.first {
+            XCTAssertEqual(reason, .doneMarker)
         } else {
             XCTFail("Expected done event")
         }
@@ -65,8 +65,8 @@ final class SSEParserTests: XCTestCase {
         if case .delta(let text) = events[1] {
             XCTAssertEqual(text, "world")
         }
-        if case .done = events[2] {
-            // Pass
+        if case .done(let reason) = events[2] {
+            XCTAssertEqual(reason, .doneMarker)
         }
     }
 
@@ -85,12 +85,13 @@ final class SSEParserTests: XCTestCase {
         }
     }
 
-    func testSkipEmptyDelta() {
+    func testEmptyDeltaStillEmitsStopReason() {
         let parser = SSEParser()
         let chunk = "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
 
         let events = parser.parse(chunk)
-        XCTAssertEqual(events.count, 0, "Empty delta should be skipped")
+        XCTAssertEqual(events.count, 1)
+        XCTAssertEqual(events[0], .done(.stop))
     }
 
     func testReset() {
@@ -136,5 +137,25 @@ final class SSEParserTests: XCTestCase {
 
         let events = parser.parse(chunk)
         XCTAssertEqual(events.count, 0, "Role-only delta should be skipped")
+    }
+
+    func testFinishReasonLengthEmitsLengthStopReason() {
+        let parser = SSEParser()
+        let chunk = "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n\n"
+
+        let events = parser.parse(chunk)
+
+        XCTAssertEqual(events.count, 1)
+        XCTAssertEqual(events[0], .done(.length))
+    }
+
+    func testFinishReasonStopEmitsStopReason() {
+        let parser = SSEParser()
+        let chunk = "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+
+        let events = parser.parse(chunk)
+
+        XCTAssertEqual(events.count, 1)
+        XCTAssertEqual(events[0], .done(.stop))
     }
 }

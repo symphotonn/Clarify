@@ -26,6 +26,7 @@ enum Constants {
     // MARK: - Panel
     static let panelWidth: CGFloat = 360
     static let panelMaxHeight: CGFloat = 480
+    static let chatPanelMaxHeight: CGFloat = 560
     static let panelAnchorOffset: CGFloat = 8
     static let panelCornerRadius: CGFloat = 12
 
@@ -34,14 +35,33 @@ enum Constants {
     static let fadeOutDuration: TimeInterval = 0.06
     static let scaleFrom: CGFloat = 0.97
     static let scaleTo: CGFloat = 1.0
+    static let completionFinalFlushMs = 300
 
     // MARK: - Word Limits
-    static let depth1WordLimit = 100
+    static let depth1WordLimit = 70
     static let depth2WordLimit = 220
     static let modeHeaderFallbackLength = 120
+    static let chatMaxOutputTokens = 500
+    static let depth1RepairMaxTokens = 128
+    static let depth1RepairTimeoutMs = 3000
+    static let repairContextTailCharacters = 900
+    static let chatSystemPrompt = """
+    You are Clarify follow-up chat.
+    Answer the user's follow-up question directly in the first sentence.
+    Use the prior explanation and provided source context.
+    If uncertain, provide your best guess first, then briefly note ambiguity.
+    Keep responses concise and practical.
+    """
+
+    // MARK: - Latency Budgets
+    static let firstTokenTargetMs = 900
+    static let totalLatencySoftBudgetMs = 2800
 
     // MARK: - Buffer
     static let explanationBufferCapacity = 5
+
+    // MARK: - Diagnostics
+    static let sessionDiagnosticsCapacity = 20
 
     // MARK: - Permissions
     static let permissionPollInterval: TimeInterval = 1.0

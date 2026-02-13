@@ -19,22 +19,54 @@ struct ChatCompletionRequest: Encodable {
         case store
     }
 
-    init(model: String, instructions: String, input: String, stream: Bool = true, maxTokens: Int? = nil) {
+    init(
+        model: String,
+        messages: [ChatMessage],
+        stream: Bool = true,
+        maxTokens: Int? = nil
+    ) {
         self.model = model
-        self.messages = [
-            ChatMessage(role: "system", content: instructions),
-            ChatMessage(role: "user", content: input)
-        ]
+        self.messages = messages
         self.stream = stream
         self.maxTokens = maxTokens
         self.temperature = 0
         self.store = false
     }
+
+    init(model: String, instructions: String, input: String, stream: Bool = true, maxTokens: Int? = nil) {
+        self.init(
+            model: model,
+            messages: [
+                ChatMessage(role: "system", content: instructions),
+                ChatMessage(role: "user", content: input)
+            ],
+            stream: stream,
+            maxTokens: maxTokens
+        )
+    }
 }
 
-struct ChatMessage: Encodable {
+struct ChatMessage: Encodable, Equatable, Sendable {
     let role: String
     let content: String
+}
+
+enum ConversationRole: String, Sendable {
+    case system
+    case assistant
+    case user
+}
+
+struct ConversationMessage: Identifiable, Equatable, Sendable {
+    let id: UUID
+    let role: ConversationRole
+    var content: String
+
+    init(id: UUID = UUID(), role: ConversationRole, content: String) {
+        self.id = id
+        self.role = role
+        self.content = content
+    }
 }
 
 // MARK: - Explanation Mode
@@ -55,9 +87,17 @@ enum ExplanationMode: String, CaseIterable {
 
 // MARK: - Stream Events
 
+enum CompletionStopReason: Equatable, Sendable {
+    case stop
+    case length
+    case doneMarker
+    case fallback
+    case unknown
+}
+
 enum StreamEvent: Equatable, Sendable {
     case delta(String)
-    case done
+    case done(CompletionStopReason)
     case error(String)
 }
 
@@ -67,6 +107,30 @@ protocol StreamingClient: Sendable {
         input: String,
         maxOutputTokens: Int?
     ) async throws -> AsyncThrowingStream<StreamEvent, Error>
+
+    func streamChat(
+        messages: [ChatMessage],
+        maxOutputTokens: Int?
+    ) async throws -> AsyncThrowingStream<StreamEvent, Error>
+}
+
+extension StreamingClient {
+    func streamChat(
+        messages: [ChatMessage],
+        maxOutputTokens: Int?
+    ) async throws -> AsyncThrowingStream<StreamEvent, Error> {
+        let systemInstructions = messages.first(where: { $0.role == "system" })?.content ?? ""
+        let transcript = messages
+            .filter { $0.role != "system" }
+            .map { "\($0.role): \($0.content)" }
+            .joined(separator: "\n")
+
+        return try await stream(
+            instructions: systemInstructions,
+            input: transcript,
+            maxOutputTokens: maxOutputTokens
+        )
+    }
 }
 
 // MARK: - Streaming Explanation

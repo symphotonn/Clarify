@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+
+"$ROOT_DIR/scripts/update_context_docs.sh" >/dev/null
+
+git -C "$ROOT_DIR" add docs/context/*.md

@@ -3,6 +3,7 @@ import Carbon.HIToolbox
 
 final class HotkeyManager: @unchecked Sendable {
     typealias HotkeyHandler = (_ isDoublePress: Bool) -> Void
+    typealias RegistrationStatusHandler = (_ issue: String?) -> Void
 
     private static let hotKeySignature: OSType = 0x434C5259 // CLRY
     private static let hotKeyIdentifier: UInt32 = 1
@@ -11,8 +12,10 @@ final class HotkeyManager: @unchecked Sendable {
     private let doublePressDetector = DoublePressDetector()
     private let lock = NSLock()
     private var hotkey: HotkeyBinding
+    private var isHandlingEnabled = true
     private var eventHandlerRef: EventHandlerRef?
     private var hotKeyRef: EventHotKeyRef?
+    var onRegistrationStatusChanged: RegistrationStatusHandler?
 
     init(hotkey: HotkeyBinding, handler: @escaping HotkeyHandler) {
         self.hotkey = hotkey
@@ -41,6 +44,16 @@ final class HotkeyManager: @unchecked Sendable {
         }
     }
 
+    func setHandlingEnabled(_ isEnabled: Bool) {
+        lock.lock()
+        isHandlingEnabled = isEnabled
+        lock.unlock()
+
+        if !isEnabled {
+            doublePressDetector.reset()
+        }
+    }
+
     fileprivate func handleHotkeyEvent(_ event: EventRef?) -> OSStatus {
         guard let event else { return OSStatus(eventNotHandledErr) }
 
@@ -58,6 +71,13 @@ final class HotkeyManager: @unchecked Sendable {
 
         guard hotKeyID.signature == Self.hotKeySignature, hotKeyID.id == Self.hotKeyIdentifier else {
             return OSStatus(eventNotHandledErr)
+        }
+
+        lock.lock()
+        let shouldHandle = isHandlingEnabled
+        lock.unlock()
+        guard shouldHandle else {
+            return noErr
         }
 
         let isDoublePress = doublePressDetector.recordPress()
@@ -88,6 +108,7 @@ final class HotkeyManager: @unchecked Sendable {
 
         if status != noErr {
             print("[Clarify] Failed to install hotkey event handler. OSStatus=\(status)")
+            onRegistrationStatusChanged?("Hotkey listener unavailable (OSStatus \(status)). Restart the app and check Accessibility permissions.")
         }
     }
 
@@ -118,6 +139,9 @@ final class HotkeyManager: @unchecked Sendable {
         if status != noErr {
             hotKeyRef = nil
             print("[Clarify] Failed to register hotkey \(hotkey.displayText). OSStatus=\(status). The shortcut may conflict with a system or app shortcut.")
+            onRegistrationStatusChanged?("Shortcut \(hotkey.displayText) is unavailable (OSStatus \(status)). It may conflict with another shortcut.")
+        } else {
+            onRegistrationStatusChanged?(nil)
         }
     }
 

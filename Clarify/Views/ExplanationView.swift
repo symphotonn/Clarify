@@ -15,6 +15,8 @@ struct ExplanationView: View {
                     errorView(appState.errorMessage ?? "Something went wrong.")
                 case .permissionRequired:
                     permissionRequiredView()
+                case .chat:
+                    ChatView()
                 case .loadingPreToken, .loadingStreaming, .result:
                     contentView
                 case .empty:
@@ -23,8 +25,11 @@ struct ExplanationView: View {
             }
             .padding(16)
         }
-        .frame(width: Constants.panelWidth)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(
+            width: Constants.panelWidth,
+            height: appState.overlayPhase == .chat ? Constants.chatPanelMaxHeight : nil
+        )
+        .fixedSize(horizontal: false, vertical: appState.overlayPhase != .chat)
     }
 
     // MARK: - Content (Zero-Chrome)
@@ -33,16 +38,39 @@ struct ExplanationView: View {
     private var contentView: some View {
         answerBody
 
-        if appState.overlayPhase == .result && appState.currentDepth < 3 {
-            Button("More") {
-                appState.requestDeeperExplanation()
+        if appState.overlayPhase == .result {
+            resultActionRow
+        }
+    }
+
+    private var resultActionRow: some View {
+        HStack(spacing: 12) {
+            Text("Enter to chat")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+
+            if appState.canRequestDeeperExplanation {
+                Button("More") {
+                    appState.requestDeeperExplanation()
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .underline()
+            }
+
+            Button("Copy") {
+                _ = appState.copyCurrentExplanation()
             }
             .buttonStyle(.plain)
             .font(.caption)
             .foregroundStyle(.secondary)
             .underline()
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .disabled(!appState.canCopyCurrentExplanation)
+
+            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Answer Body

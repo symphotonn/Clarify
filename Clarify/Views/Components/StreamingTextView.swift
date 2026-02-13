@@ -5,6 +5,7 @@ struct StreamingTextView: View {
     let isStreaming: Bool
     @State private var displayedText: String = ""
     @State private var revealTask: Task<Void, Never>?
+    @State private var finalFlushTask: Task<Void, Never>?
     @State private var revealGeneration: Int = 0
 
     var body: some View {
@@ -28,16 +29,13 @@ struct StreamingTextView: View {
             handleIncomingText(newValue)
         }
         .onChange(of: isStreaming) { _, newValue in
-            if !newValue {
-                revealTask?.cancel()
-                revealTask = nil
-                displayedText = text
-                pendingText = text
-            }
+            handleStreamingStateChange(isStreaming: newValue)
         }
         .onDisappear {
             revealTask?.cancel()
             revealTask = nil
+            finalFlushTask?.cancel()
+            finalFlushTask = nil
         }
     }
 
@@ -60,16 +58,14 @@ struct StreamingTextView: View {
         if newValue.isEmpty {
             revealTask?.cancel()
             revealTask = nil
+            finalFlushTask?.cancel()
+            finalFlushTask = nil
             displayedText = ""
             pendingText = ""
             return
         }
 
-        guard isStreaming else {
-            revealTask?.cancel()
-            revealTask = nil
-            displayedText = newValue
-            pendingText = ""
+        if newValue == displayedText {
             return
         }
 
@@ -83,6 +79,38 @@ struct StreamingTextView: View {
 
         pendingText = newValue
         startWordRevealIfNeeded()
+        if !isStreaming {
+            scheduleFinalFlushIfNeeded()
+        }
+    }
+
+    private func handleStreamingStateChange(isStreaming: Bool) {
+        if isStreaming {
+            finalFlushTask?.cancel()
+            finalFlushTask = nil
+            return
+        }
+        scheduleFinalFlushIfNeeded()
+    }
+
+    private func scheduleFinalFlushIfNeeded() {
+        finalFlushTask?.cancel()
+        guard pendingText.count > displayedText.count else {
+            finalFlushTask = nil
+            return
+        }
+
+        finalFlushTask = Task {
+            try? await Task.sleep(for: .milliseconds(Constants.completionFinalFlushMs))
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run {
+                if pendingText.count > displayedText.count {
+                    displayedText = pendingText
+                }
+                finalFlushTask = nil
+            }
+        }
     }
 
     @State private var pendingText: String = ""
