@@ -2,14 +2,13 @@ import AppKit
 import Carbon.HIToolbox
 
 final class HotkeyManager: @unchecked Sendable {
-    typealias HotkeyHandler = (_ isDoublePress: Bool) -> Void
+    typealias HotkeyHandler = () -> Void
     typealias RegistrationStatusHandler = (_ issue: String?) -> Void
 
     private static let hotKeySignature: OSType = 0x434C5259 // CLRY
     private static let hotKeyIdentifier: UInt32 = 1
 
     private let handler: HotkeyHandler
-    private let doublePressDetector = DoublePressDetector()
     private let lock = NSLock()
     private var hotkey: HotkeyBinding
     private var isHandlingEnabled = true
@@ -26,7 +25,6 @@ final class HotkeyManager: @unchecked Sendable {
         lock.lock()
         self.hotkey = hotkey
         lock.unlock()
-        doublePressDetector.reset()
         registerHotkey()
     }
 
@@ -48,10 +46,6 @@ final class HotkeyManager: @unchecked Sendable {
         lock.lock()
         isHandlingEnabled = isEnabled
         lock.unlock()
-
-        if !isEnabled {
-            doublePressDetector.reset()
-        }
     }
 
     fileprivate func handleHotkeyEvent(_ event: EventRef?) -> OSStatus {
@@ -80,8 +74,7 @@ final class HotkeyManager: @unchecked Sendable {
             return noErr
         }
 
-        let isDoublePress = doublePressDetector.recordPress()
-        handler(isDoublePress)
+        handler()
         return noErr
     }
 

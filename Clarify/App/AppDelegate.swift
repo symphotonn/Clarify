@@ -43,9 +43,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         appState.permissionManager.startPolling()
 
-        hotkeyManager = HotkeyManager(hotkey: settingsManager.hotkeyBinding) { [weak self] isDoublePress in
+        hotkeyManager = HotkeyManager(hotkey: settingsManager.hotkeyBinding) { [weak self] in
             Task { @MainActor in
-                self?.appState.handleHotkey(isDoublePress: isDoublePress)
+                self?.appState.handleHotkey()
             }
         }
 
@@ -73,7 +73,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeyManager?.stop()
         hotkeyManager?.onRegistrationStatusChanged = nil
         settingsManager.onHotkeyChanged = nil
-        appState.explanationBuffer.clear()
         if let settingsRequestObserver {
             NotificationCenter.default.removeObserver(settingsRequestObserver)
             self.settingsRequestObserver = nil

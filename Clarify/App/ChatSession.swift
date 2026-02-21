@@ -74,6 +74,11 @@ final class ChatSession {
         streamingMessageID = nil
     }
 
+    func replaceLastAssistantContent(_ content: String) {
+        guard let index = messages.lastIndex(where: { $0.role == .assistant }) else { return }
+        messages[index].content = content
+    }
+
     func removeEmptyTrailingAssistantMessage() {
         guard let last = messages.last, last.role == .assistant else { return }
         if last.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

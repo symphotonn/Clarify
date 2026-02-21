@@ -1,5 +1,5 @@
 # 03. Data Model
-_Last updated: 2026-02-21 21:10 UTC_
+_Last updated: 2026-02-21 21:24 UTC_
 
 ## Storage Model (No SQL/Cloud DB)
 Clarify currently has no relational database. Data is split into:

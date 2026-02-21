@@ -2,7 +2,7 @@ import XCTest
 @testable import Clarify
 
 final class PromptBuilderTests: XCTestCase {
-    func testDepth1IncludesWordLimit() {
+    func testIncludesWordLimit() {
         let context = ContextInfo(
             selectedText: "gradient descent",
             appName: "Safari",
@@ -11,39 +11,13 @@ final class PromptBuilderTests: XCTestCase {
             selectionBounds: nil
         )
 
-        let parts = PromptBuilder.build(
-            context: context,
-            depth: 1,
-            previousExplanation: nil
-        )
+        let parts = PromptBuilder.build(context: context)
 
-        XCTAssertTrue(parts.instructions.contains("\(Constants.depth1WordLimit)"))
-        XCTAssertFalse(parts.instructions.contains("deeper"))
+        XCTAssertTrue(parts.instructions.contains("\(Constants.wordLimit)"))
         XCTAssertTrue(parts.input.contains("gradient descent"))
         XCTAssertTrue(parts.input.contains("Source: Safari"))
         XCTAssertTrue(parts.input.contains("title: Machine Learning Guide"))
-        XCTAssertEqual(parts.maxOutputTokens, 96)
-    }
-
-    func testDepth2IncludesPreviousExplanation() {
-        let context = ContextInfo(
-            selectedText: "gradient descent",
-            appName: "Safari",
-            windowTitle: nil,
-            surroundingLines: nil,
-            selectionBounds: nil
-        )
-
-        let parts = PromptBuilder.build(
-            context: context,
-            depth: 2,
-            previousExplanation: "Previous explanation text here"
-        )
-
-        XCTAssertTrue(parts.instructions.contains("220"))
-        XCTAssertTrue(parts.instructions.contains("Depth 2"))
-        XCTAssertTrue(parts.input.contains("Previous explanation text here"))
-        XCTAssertEqual(parts.maxOutputTokens, 180)
+        XCTAssertEqual(parts.maxOutputTokens, 160)
     }
 
     func testModeClassificationInstructions() {
@@ -55,11 +29,7 @@ final class PromptBuilderTests: XCTestCase {
             selectionBounds: nil
         )
 
-        let parts = PromptBuilder.build(
-            context: context,
-            depth: 1,
-            previousExplanation: nil
-        )
+        let parts = PromptBuilder.build(context: context)
 
         XCTAssertTrue(parts.instructions.contains("[MODE: Learn]"))
         XCTAssertTrue(parts.instructions.contains("[MODE: Simplify]"))
@@ -75,16 +45,12 @@ final class PromptBuilderTests: XCTestCase {
             selectionBounds: nil
         )
 
-        let parts = PromptBuilder.build(
-            context: context,
-            depth: 1,
-            previousExplanation: nil
-        )
+        let parts = PromptBuilder.build(context: context)
 
         XCTAssertTrue(parts.instructions.contains("concise explanation assistant"))
         XCTAssertTrue(parts.instructions.contains("1-2 sentences"))
         XCTAssertTrue(parts.instructions.contains("First sentence must answer directly"))
-        XCTAssertTrue(parts.instructions.contains("Depth 1 priority: be as simple and concise as possible."))
+        XCTAssertTrue(parts.instructions.contains("Be as simple and concise as possible."))
         XCTAssertTrue(parts.instructions.contains("Output at most two short sentences."))
         XCTAssertTrue(parts.instructions.contains("Never stop mid-sentence."))
         XCTAssertTrue(parts.instructions.contains("Use provided context"))
@@ -101,11 +67,7 @@ final class PromptBuilderTests: XCTestCase {
             selectedOccurrenceContext: "A bat flew out of the cave at night."
         )
 
-        let parts = PromptBuilder.build(
-            context: context,
-            depth: 1,
-            previousExplanation: nil
-        )
+        let parts = PromptBuilder.build(context: context)
 
         XCTAssertTrue(parts.input.contains("Context quality: selected occurrence available"))
         XCTAssertTrue(parts.input.contains("Selected occurrence context:\nA bat flew out of the cave at night."))
@@ -124,11 +86,7 @@ final class PromptBuilderTests: XCTestCase {
             selectionBounds: nil
         )
 
-        let parts = PromptBuilder.build(
-            context: context,
-            depth: 1,
-            previousExplanation: nil
-        )
+        let parts = PromptBuilder.build(context: context)
 
         XCTAssertTrue(parts.input.contains("Intent: Identifier lookup"))
         XCTAssertTrue(parts.instructions.contains("Treat as identifier"))
@@ -147,11 +105,7 @@ final class PromptBuilderTests: XCTestCase {
             isConversationContext: true
         )
 
-        let parts = PromptBuilder.build(
-            context: context,
-            depth: 1,
-            previousExplanation: nil
-        )
+        let parts = PromptBuilder.build(context: context)
 
         XCTAssertTrue(parts.instructions.contains("Conversation context may be noisy"))
         XCTAssertTrue(parts.input.contains("Context quality: conversation context excluded by default"))

@@ -10,6 +10,7 @@ final class SettingsManager {
         static let hotkeyUseCommand = "hotkeyUseCommand"
         static let hotkeyUseControl = "hotkeyUseControl"
         static let hotkeyUseShift = "hotkeyUseShift"
+        static let themeName = "themeName"
     }
 
     private let defaults: UserDefaults
@@ -21,6 +22,19 @@ final class SettingsManager {
     private(set) var lastSavedAt: Date?
     private(set) var lastSavedMessage: String = "Not saved yet"
     private(set) var hotkeyRegistrationIssue: String?
+
+    var themeName: String {
+        didSet {
+            defaults.set(themeName, forKey: Keys.themeName)
+            if !isInitializing {
+                markSaved("Theme saved")
+            }
+        }
+    }
+
+    var currentTheme: ClarifyTheme {
+        ClarifyTheme.named(themeName)
+    }
 
     var apiKey: String {
         didSet {
@@ -127,6 +141,8 @@ final class SettingsManager {
         } else {
             self.modelName = Constants.defaultModel
         }
+
+        self.themeName = resolvedDefaults.string(forKey: Keys.themeName) ?? ClarifyTheme.system.name
 
         if let keyRaw = resolvedDefaults.string(forKey: Keys.hotkeyKey),
            let key = HotkeyKey(rawValue: keyRaw) {

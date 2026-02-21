@@ -11,7 +11,6 @@
 		A10002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002; };
 		A10003 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003; };
 		A10004 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10004; };
-		A10005 /* DoublePressDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10005; };
 		A10006 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10006; };
 		A10007 /* AccessibilityCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10007; };
 		A10008 /* ContextInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10008; };
@@ -29,7 +28,6 @@
 		A10022 /* StreamingTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10022; };
 		A10023 /* VisualEffectBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10023; };
 		A10024 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10024; };
-		A10025 /* ExplanationBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10025; };
 		A10026 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10026; };
 		A10027 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10027; };
 		A10028 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B10028; };
@@ -38,10 +36,11 @@
 		A10034 /* ChatSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10034; };
 		A10035 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10035; };
 		A10036 /* CompletionQualityGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10036; };
-		A20001 /* DoublePressDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20001; };
+		A10037 /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10037; };
+		A10038 /* KeyboardGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10038; };
+		A10039 /* ClarifyTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10039; };
 		A20002 /* PromptBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20002; };
 		A20003 /* SSEParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20003; };
-		A20004 /* ExplanationBufferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20004; };
 		A20005 /* PanelPositionerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20005; };
 		A20006 /* AppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20006; };
 		A20007 /* HotkeyManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20007; };
@@ -64,7 +63,6 @@
 		B10002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		B10003 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		B10004 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
-		B10005 /* DoublePressDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoublePressDetector.swift; sourceTree = "<group>"; };
 		B10006 /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		B10007 /* AccessibilityCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityCapture.swift; sourceTree = "<group>"; };
 		B10008 /* ContextInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextInfo.swift; sourceTree = "<group>"; };
@@ -82,7 +80,6 @@
 		B10022 /* StreamingTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingTextView.swift; sourceTree = "<group>"; };
 		B10023 /* VisualEffectBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBackground.swift; sourceTree = "<group>"; };
 		B10024 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
-		B10025 /* ExplanationBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExplanationBuffer.swift; sourceTree = "<group>"; };
 		B10026 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		B10027 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		B10028 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -93,10 +90,11 @@
 		B10034 /* ChatSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSession.swift; sourceTree = "<group>"; };
 		B10035 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		B10036 /* CompletionQualityGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionQualityGate.swift; sourceTree = "<group>"; };
-		B20001 /* DoublePressDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DoublePressDetectorTests.swift; sourceTree = "<group>"; };
+		B10037 /* MarkdownText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownText.swift; sourceTree = "<group>"; };
+		B10038 /* KeyboardGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardGlyph.swift; sourceTree = "<group>"; };
+		B10039 /* ClarifyTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClarifyTheme.swift; sourceTree = "<group>"; };
 		B20002 /* PromptBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptBuilderTests.swift; sourceTree = "<group>"; };
 		B20003 /* SSEParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSEParserTests.swift; sourceTree = "<group>"; };
-		B20004 /* ExplanationBufferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExplanationBufferTests.swift; sourceTree = "<group>"; };
 		B20005 /* PanelPositionerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelPositionerTests.swift; sourceTree = "<group>"; };
 		B20006 /* AppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateTests.swift; sourceTree = "<group>"; };
 		B20007 /* HotkeyManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManagerTests.swift; sourceTree = "<group>"; };
@@ -153,6 +151,7 @@
 				G10006 /* Views */,
 				G10007 /* Storage */,
 				G10008 /* Utilities */,
+				G10011 /* Theme */,
 				G10009 /* Resources */,
 				B10029 /* Info.plist */,
 			);
@@ -174,7 +173,6 @@
 			isa = PBXGroup;
 			children = (
 				B10004 /* HotkeyManager.swift */,
-				B10005 /* DoublePressDetector.swift */,
 				B10006 /* PermissionManager.swift */,
 				B10031 /* HotkeyBinding.swift */,
 			);
@@ -231,6 +229,8 @@
 				B10022 /* StreamingTextView.swift */,
 				B10023 /* VisualEffectBackground.swift */,
 				B10033 /* ShimmerView.swift */,
+				B10037 /* MarkdownText.swift */,
+				B10038 /* KeyboardGlyph.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -239,7 +239,6 @@
 			isa = PBXGroup;
 			children = (
 				B10024 /* SettingsManager.swift */,
-				B10025 /* ExplanationBuffer.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -262,13 +261,19 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		G10011 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				B10039 /* ClarifyTheme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
 		G20000 /* ClarifyTests */ = {
 			isa = PBXGroup;
 			children = (
-				B20001 /* DoublePressDetectorTests.swift */,
 				B20002 /* PromptBuilderTests.swift */,
 				B20003 /* SSEParserTests.swift */,
-				B20004 /* ExplanationBufferTests.swift */,
 				B20005 /* PanelPositionerTests.swift */,
 				B20006 /* AppStateTests.swift */,
 				B20007 /* HotkeyManagerTests.swift */,
@@ -373,7 +378,6 @@
 				A10002 /* AppDelegate.swift in Sources */,
 				A10003 /* AppState.swift in Sources */,
 				A10004 /* HotkeyManager.swift in Sources */,
-				A10005 /* DoublePressDetector.swift in Sources */,
 				A10006 /* PermissionManager.swift in Sources */,
 				A10007 /* AccessibilityCapture.swift in Sources */,
 				A10008 /* ContextInfo.swift in Sources */,
@@ -391,7 +395,6 @@
 				A10022 /* StreamingTextView.swift in Sources */,
 				A10023 /* VisualEffectBackground.swift in Sources */,
 				A10024 /* SettingsManager.swift in Sources */,
-				A10025 /* ExplanationBuffer.swift in Sources */,
 				A10026 /* Constants.swift in Sources */,
 				A10027 /* Extensions.swift in Sources */,
 				A10029 /* HotkeyBinding.swift in Sources */,
@@ -399,6 +402,9 @@
 				A10034 /* ChatSession.swift in Sources */,
 				A10035 /* ChatView.swift in Sources */,
 				A10036 /* CompletionQualityGate.swift in Sources */,
+				A10037 /* MarkdownText.swift in Sources */,
+				A10038 /* KeyboardGlyph.swift in Sources */,
+				A10039 /* ClarifyTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -406,10 +412,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A20001 /* DoublePressDetectorTests.swift in Sources */,
 				A20002 /* PromptBuilderTests.swift in Sources */,
 				A20003 /* SSEParserTests.swift in Sources */,
-				A20004 /* ExplanationBufferTests.swift in Sources */,
 				A20005 /* PanelPositionerTests.swift in Sources */,
 				A20006 /* AppStateTests.swift in Sources */,
 				A20007 /* HotkeyManagerTests.swift in Sources */,

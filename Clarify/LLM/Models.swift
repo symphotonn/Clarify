@@ -133,15 +133,6 @@ extension StreamingClient {
     }
 }
 
-// MARK: - Streaming Explanation
-
-struct StreamingExplanation {
-    let fullText: String
-    let mode: ExplanationMode
-    let depth: Int
-    let context: ContextInfo
-}
-
 // MARK: - Prompt Parts
 
 struct PromptParts {
