@@ -1,5 +1,5 @@
 # 05. Current State / Next Steps
-_Last updated: 2026-02-13 06:28 UTC_
+_Last updated: 2026-02-21 21:10 UTC_
 
 ## What Works
 - Global hotkey triggers capture and explanation flow.
@@ -9,13 +9,14 @@ _Last updated: 2026-02-13 06:28 UTC_
 - Copy works via button and `Cmd+C`.
 - Enter from result opens follow-up chat mode with an input field and streaming multi-turn replies.
 - Esc behavior is layered: Esc in chat returns to result; Esc in result dismisses overlay.
-- Explanation and chat rendering both reveal text progressively word-by-word (including single-chunk model outputs).
-- Progressive reveal now has a 300ms final-flush deadline after streaming stops, preventing stale partial text.
+- Explanation renders progressively while loading, then uses direct finalized rendering in result mode; chat responses reveal progressively.
+- Progressive reveal is active during streaming; once streaming ends, views now snap to finalized full text to prevent stale partial rendering.
+- Result panel now resizes from finalized explanation text (with a higher non-chat baseline) so complete responses are visible in result mode without entering chat.
 - Outside-click dismissal is disabled in loading/result/chat and enabled only in permission/error/empty states.
 - First explanation (depth 1) now enforces plain-language beginner style with concise-but-complete constraints (no sentence fragments).
-- Depth-1 completion gate runs only for `.length`/`.unknown` stop reasons; `.stop` is trusted and skips repair.
-- Depth-1 repair uses continuation-tail context, one attempt max, and a 3s hard timeout.
-- `.stop` now has a safety exception: obvious incomplete endings still trigger one repair pass.
+- Explanation completion gate now runs for all stop reasons at every depth (1-3); incomplete outputs trigger one bounded repair attempt.
+- Repair uses continuation-tail context, one attempt max, and a 3s hard timeout.
+- `.stop` still gets structural/sentence checks, so obvious incomplete endings (including missing terminal punctuation) trigger a repair pass.
 - If completion still degrades (for example repair timeout/failure), result view shows a subtle inline `Incomplete response` hint with a `Retry` action.
 - Permission onboarding supports polling and auto-resume after grant.
 - Settings persist API key/hotkey/model, with registration conflict hint for unavailable shortcuts.

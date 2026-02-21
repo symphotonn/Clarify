@@ -1,9 +1,6 @@
 import Foundation
 
 enum Constants {
-    // MARK: - Hotkey
-    static let doublePressInterval: TimeInterval = 0.4
-
     // MARK: - API
     static let apiEndpoint = "https://api.openai.com/v1/chat/completions"
     static let defaultModel = "gpt-4o-mini"
@@ -27,22 +24,23 @@ enum Constants {
     static let panelWidth: CGFloat = 360
     static let panelMaxHeight: CGFloat = 480
     static let chatPanelMaxHeight: CGFloat = 560
+    static let resultPanelMinHeight: CGFloat = 260
     static let panelAnchorOffset: CGFloat = 8
     static let panelCornerRadius: CGFloat = 12
 
     // MARK: - Animation
     static let fadeInDuration: TimeInterval = 0.15
-    static let fadeOutDuration: TimeInterval = 0.06
+    static let fadeOutDuration: TimeInterval = 0.12
     static let scaleFrom: CGFloat = 0.97
     static let scaleTo: CGFloat = 1.0
     static let completionFinalFlushMs = 300
+    static let phaseTransitionDuration: TimeInterval = 0.15
 
     // MARK: - Word Limits
-    static let depth1WordLimit = 70
-    static let depth2WordLimit = 220
+    static let wordLimit = 70
     static let modeHeaderFallbackLength = 120
-    static let chatMaxOutputTokens = 500
-    static let depth1RepairMaxTokens = 128
+    static let chatMaxOutputTokens = 1024
+    static let depth1RepairMaxTokens = 256
     static let depth1RepairTimeoutMs = 3000
     static let repairContextTailCharacters = 900
     static let chatSystemPrompt = """
@@ -51,14 +49,15 @@ enum Constants {
     Use the prior explanation and provided source context.
     If uncertain, provide your best guess first, then briefly note ambiguity.
     Keep responses concise and practical.
+    Always end with a complete sentence.
     """
 
     // MARK: - Latency Budgets
     static let firstTokenTargetMs = 900
     static let totalLatencySoftBudgetMs = 2800
 
-    // MARK: - Buffer
-    static let explanationBufferCapacity = 5
+    // MARK: - Action Bar
+    static let actionBarSpacing: CGFloat = 12
 
     // MARK: - Diagnostics
     static let sessionDiagnosticsCapacity = 20

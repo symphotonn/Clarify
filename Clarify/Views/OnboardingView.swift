@@ -2,12 +2,13 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.clarifyTheme) private var theme
 
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "hand.raised.circle")
                 .font(.system(size: 48))
-                .foregroundStyle(.blue)
+                .foregroundStyle(theme.info)
 
             Text("Accessibility Access Required")
                 .font(.headline)
@@ -20,7 +21,7 @@ struct OnboardingView: View {
 
             if appState.permissionManager.isAccessibilityGranted {
                 Label("Access Granted", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(theme.success)
             } else {
                 Button("Grant Access") {
                     appState.permissionManager.requestPermission()

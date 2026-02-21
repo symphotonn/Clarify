@@ -3,13 +3,15 @@ import AppKit
 
 struct ExplanationView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.clarifyTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var permissionPollingTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
             VisualEffectBackground()
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 switch appState.overlayPhase {
                 case .error:
                     errorView(appState.errorMessage ?? "Something went wrong.")
@@ -24,6 +26,10 @@ struct ExplanationView: View {
                 }
             }
             .padding(16)
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: Constants.phaseTransitionDuration),
+                value: appState.overlayPhase
+            )
         }
         .frame(
             width: Constants.panelWidth,
@@ -44,47 +50,45 @@ struct ExplanationView: View {
     }
 
     private var resultActionRow: some View {
-        HStack(spacing: 12) {
-            Text("Enter to chat")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-
+        VStack(spacing: 0) {
             if appState.shouldShowIncompleteRetryHint {
-                Text("Incomplete response")
+                HStack {
+                    Text("Incomplete response")
+                        .font(.caption2)
+                        .foregroundStyle(theme.tertiary)
+                    Button("Retry") {
+                        appState.retryLastRequest()
+                    }
+                    .buttonStyle(.plain)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
-
-                Button("Retry") {
-                    appState.retryLastRequest()
+                    .foregroundStyle(theme.tertiary)
+                    .underline()
+                    Spacer()
                 }
-                .buttonStyle(.plain)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .underline()
+                .padding(.bottom, 8)
             }
 
-            if appState.canRequestDeeperExplanation {
-                Button("More") {
-                    appState.requestDeeperExplanation()
+            theme.divider
+                .frame(height: 0.5)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, -16)
+
+            HStack {
+                ActionButton(label: "Chat", glyph: "\u{21B5}", theme: theme) {
+                    appState.enterChatMode()
                 }
-                .buttonStyle(.plain)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .underline()
-            }
+                .accessibilityLabel("Enter chat mode, press Return")
 
-            Button("Copy") {
-                _ = appState.copyCurrentExplanation()
-            }
-            .buttonStyle(.plain)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .underline()
-            .disabled(!appState.canCopyCurrentExplanation)
+                Spacer()
 
-            Spacer()
+                ActionButton(label: "Copy", glyph: "\u{2318}C", theme: theme) {
+                    _ = appState.copyCurrentExplanation()
+                }
+                .disabled(!appState.canCopyCurrentExplanation)
+                .accessibilityLabel("Copy explanation, press Command C")
+            }
+            .padding(.top, Constants.actionBarSpacing)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Answer Body
@@ -93,40 +97,43 @@ struct ExplanationView: View {
     private var answerBody: some View {
         let hasText = appState.hasMeaningfulExplanationText
 
-        VStack(alignment: .leading, spacing: 6) {
-            if appState.overlayPhase == .loadingPreToken {
-                VStack(alignment: .leading, spacing: 8) {
-                    if let selected = appState.currentContext?.selectedText {
-                        Text("\u{201C}\(selected.truncated(to: 80))\u{201D}")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(2)
-                            .italic()
-                    }
-
-                    ShimmerView()
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            if let selected = appState.currentContext?.selectedText,
+               selected.trimmingCharacters(in: .whitespacesAndNewlines).count >= 5 {
+                Text("\u{201C}\(selected.truncated(to: 80))\u{201D}")
+                    .font(.caption)
+                    .foregroundStyle(theme.tertiary)
+                    .lineLimit(2)
+                    .italic()
             }
 
-            StreamingTextView(
-                text: appState.explanationText,
-                isStreaming: appState.overlayPhase == .loadingStreaming && hasText
-            )
+            if appState.overlayPhase == .loadingPreToken {
+                ShimmerView(stageText: appState.generationStage.loadingLabel)
+            }
 
             if appState.overlayPhase == .loadingStreaming && hasText {
-                HStack(spacing: 6) {
+                StreamingTextView(
+                    text: appState.explanationText,
+                    isStreaming: true
+                )
+            } else if appState.overlayPhase == .result {
+                MarkdownText(markdown: appState.explanationText)
+            }
+
+            if appState.overlayPhase == .loadingStreaming && hasText {
+                HStack(spacing: 4) {
                     Text("Generating...")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(theme.tertiary)
                     Text("\u{00B7}")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(theme.tertiary)
                     Button("Cancel") {
                         appState.cancelGeneration()
                     }
                     .buttonStyle(.plain)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.tertiary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -140,11 +147,11 @@ struct ExplanationView: View {
         VStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.title2)
-                .foregroundStyle(.orange)
+                .foregroundStyle(theme.error)
 
             Text(message)
-                .font(.callout)
-                .foregroundStyle(.secondary)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(theme.body)
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 12) {
@@ -175,34 +182,40 @@ struct ExplanationView: View {
         VStack(spacing: 12) {
             Image(systemName: "hand.raised.circle")
                 .font(.system(size: 36))
-                .foregroundStyle(.blue)
+                .foregroundStyle(theme.info)
 
             Text("Clarify needs permission to read selected text.")
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.body)
                 .multilineTextAlignment(.center)
 
             if appState.permissionGranted {
                 Label("You\u{2019}re all set.", systemImage: "checkmark.circle.fill")
                     .font(.callout.weight(.medium))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(theme.success)
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                            appState.handleHotkey(isDoublePress: false)
+                            appState.handleHotkey()
                         }
                     }
             } else {
                 Button("Enable") {
                     appState.permissionManager.openAccessibilitySettings()
-                    appState.permissionManager.requestPermission()
                     startPermissionPolling()
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
+
+                Text("Toggle Clarify \u{2192} ON, then come back.")
+                    .font(.caption)
+                    .foregroundStyle(theme.tertiary)
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
+        .onAppear {
+            startPermissionPolling()
+        }
         .onDisappear {
             permissionPollingTask?.cancel()
             permissionPollingTask = nil
@@ -216,14 +229,15 @@ struct ExplanationView: View {
         VStack(spacing: 8) {
             Image(systemName: "text.magnifyingglass")
                 .font(.title2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.tertiary)
 
-            Text("No explanation text received")
+            Text("Nothing to explain yet")
                 .font(.callout.weight(.semibold))
+                .foregroundStyle(theme.headline)
 
-            Text("Select text in another app, then press your hotkey again.")
+            Text("Highlight some text, then press your hotkey again.")
                 .font(.callout)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.tertiary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -252,6 +266,33 @@ struct ExplanationView: View {
                 appState.permissionGranted = appState.permissionManager.isAccessibilityGranted
                 if appState.permissionGranted { break }
             }
+        }
+    }
+}
+
+// MARK: - Action Button with Hover State
+
+private struct ActionButton: View {
+    let label: String
+    let glyph: String
+    let theme: ClarifyTheme
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                KeyboardGlyph(glyph: glyph)
+                Text(label)
+                    .font(.caption)
+            }
+            .foregroundStyle(theme.tertiary)
+            .opacity(isHovered ? 1.0 : 0.8)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
         }
     }
 }

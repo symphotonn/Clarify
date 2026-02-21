@@ -2,14 +2,18 @@ import SwiftUI
 
 struct ChatView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.clarifyTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
         if let chatSession = appState.chatSession {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 summaryCard
 
-                Divider()
+                theme.divider
+                    .frame(height: 0.5)
+                    .frame(maxWidth: .infinity)
 
                 messagesView(chatSession: chatSession)
 
@@ -25,28 +29,29 @@ struct ChatView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Chat unavailable")
                     .font(.headline)
+                    .foregroundStyle(theme.headline)
                 Text("Press Esc to return.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.tertiary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var summaryCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             if let selectedText = appState.currentContext?.selectedText,
                !selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text("\u{201C}\(selectedText.truncated(to: 90))\u{201D}")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.tertiary)
                     .lineLimit(2)
                     .italic()
             }
 
             Text(appState.explanationText.truncated(to: 180))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(theme.tertiary)
                 .lineLimit(3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -56,12 +61,20 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(chatSession.visibleMessages) { message in
+                    ForEach(Array(chatSession.visibleMessages.enumerated()), id: \.element.id) { index, message in
                         ChatBubble(
                             message: message,
                             isStreaming: chatSession.isStreaming && chatSession.streamingMessageID == message.id
                         )
                             .id(message.id)
+                            .transition(
+                                reduceMotion
+                                    ? .opacity
+                                    : .asymmetric(
+                                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                                        removal: .opacity
+                                    )
+                            )
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -123,6 +136,7 @@ struct ChatView: View {
 private struct ChatBubble: View {
     let message: ConversationMessage
     let isStreaming: Bool
+    @Environment(\.clarifyTheme) private var theme
 
     var body: some View {
         HStack {
@@ -131,10 +145,11 @@ private struct ChatBubble: View {
             }
 
             WordByWordText(text: message.content, isStreaming: isStreaming)
-                .font(.callout)
+                .font(.system(size: 13))
+                .lineSpacing(4)
                 .foregroundStyle(textColor)
                 .textSelection(.enabled)
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(backgroundColor)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -150,9 +165,9 @@ private struct ChatBubble: View {
     private var backgroundColor: Color {
         switch message.role {
         case .user:
-            return Color.accentColor.opacity(0.22)
+            return theme.userBubble
         case .assistant:
-            return Color.gray.opacity(0.16)
+            return theme.assistantBubble
         case .system:
             return Color.clear
         }
@@ -161,11 +176,11 @@ private struct ChatBubble: View {
     private var textColor: Color {
         switch message.role {
         case .user:
-            return .primary
+            return theme.body
         case .assistant:
-            return .primary
+            return theme.body
         case .system:
-            return .secondary
+            return theme.tertiary
         }
     }
 }
@@ -173,11 +188,11 @@ private struct ChatBubble: View {
 private struct WordByWordText: View {
     let text: String
     let isStreaming: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var displayedText: String = ""
     @State private var pendingText: String = ""
     @State private var revealTask: Task<Void, Never>?
-    @State private var finalFlushTask: Task<Void, Never>?
     @State private var revealGeneration: Int = 0
     @State private var cursorOpacity: Double = 1.0
 
@@ -186,8 +201,8 @@ private struct WordByWordText: View {
             Text(displayedText)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if isStreaming && !displayedText.isEmpty {
-                Text("|")
+            if isStreaming && !displayedText.isEmpty && !reduceMotion {
+                Text("\u{258E}")
                     .opacity(cursorOpacity)
                     .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: isStreaming)
             }
@@ -205,8 +220,6 @@ private struct WordByWordText: View {
         .onDisappear {
             revealTask?.cancel()
             revealTask = nil
-            finalFlushTask?.cancel()
-            finalFlushTask = nil
         }
     }
 
@@ -214,14 +227,21 @@ private struct WordByWordText: View {
         if newValue.isEmpty {
             revealTask?.cancel()
             revealTask = nil
-            finalFlushTask?.cancel()
-            finalFlushTask = nil
             displayedText = ""
             pendingText = ""
             return
         }
 
-        if newValue == displayedText {
+        if newValue == displayedText && newValue == pendingText {
+            return
+        }
+
+        // When not streaming and no active reveal animation, snap immediately.
+        if !isStreaming && revealTask == nil {
+            revealTask?.cancel()
+            revealTask = nil
+            pendingText = newValue
+            displayedText = newValue
             return
         }
 
@@ -234,39 +254,20 @@ private struct WordByWordText: View {
         }
 
         pendingText = newValue
-        startWordRevealIfNeeded()
-        if !isStreaming {
-            scheduleFinalFlushIfNeeded()
+
+        if reduceMotion {
+            displayedText = newValue
+        } else {
+            startWordRevealIfNeeded()
         }
     }
 
     private func handleStreamingStateChange(isStreaming: Bool) {
-        if isStreaming {
-            finalFlushTask?.cancel()
-            finalFlushTask = nil
-            return
-        }
-        scheduleFinalFlushIfNeeded()
-    }
-
-    private func scheduleFinalFlushIfNeeded() {
-        finalFlushTask?.cancel()
-        guard pendingText.count > displayedText.count else {
-            finalFlushTask = nil
-            return
-        }
-
-        finalFlushTask = Task {
-            try? await Task.sleep(for: .milliseconds(Constants.completionFinalFlushMs))
-            guard !Task.isCancelled else { return }
-
-            await MainActor.run {
-                if pendingText.count > displayedText.count {
-                    displayedText = pendingText
-                }
-                finalFlushTask = nil
-            }
-        }
+        if isStreaming { return }
+        // Snap to final text when streaming ends
+        revealTask?.cancel()
+        revealTask = nil
+        displayedText = pendingText
     }
 
     private func startWordRevealIfNeeded() {
@@ -294,6 +295,9 @@ private struct WordByWordText: View {
             await MainActor.run {
                 if revealGeneration == generation {
                     revealTask = nil
+                    if pendingText.count > displayedText.count {
+                        startWordRevealIfNeeded()
+                    }
                 }
             }
         }

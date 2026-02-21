@@ -36,6 +36,14 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Theme") {
+                ForEach(ClarifyTheme.allThemes, id: \.name) { theme in
+                    ThemeRow(theme: theme, isSelected: settings.themeName == theme.name) {
+                        settings.themeName = theme.name
+                    }
+                }
+            }
+
             Section("Hotkey") {
                 HStack {
                     Text("Preview")
@@ -87,9 +95,14 @@ struct SettingsView: View {
                 }
 
                 if !settings.hotkeyBinding.hasAnyModifier {
-                    Text("Choose at least one modifier to avoid intercepting normal typing.")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                    Label {
+                        Text("Choose at least one modifier to avoid intercepting normal typing.")
+                            .font(.caption)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(Color(hex: 0xFF9F0A))
                 }
 
                 if let hotkeyIssue = settings.hotkeyRegistrationIssue {
@@ -106,7 +119,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 380)
+        .frame(width: 460, height: 500)
         .onDisappear {
             stopHotkeyCapture()
             savedBannerTask?.cancel()
@@ -220,6 +233,50 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+}
+
+private struct ThemeRow: View {
+    let theme: ClarifyTheme
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 10) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(isSelected ? .accentColor : .secondary)
+
+                Text(theme.name)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    colorDot(theme.background.opacity(theme.useVibrancy ? 0 : 1), border: theme.useVibrancy)
+                    colorDot(theme.button)
+                    colorDot(theme.headline)
+                }
+            }
+            .padding(.vertical, 2)
+            .padding(.horizontal, 4)
+            .background(
+                isSelected
+                    ? RoundedRectangle(cornerRadius: 6).fill(.quaternary)
+                    : nil
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func colorDot(_ color: Color, border: Bool = false) -> some View {
+        Circle()
+            .fill(color)
+            .overlay(
+                Circle().strokeBorder(.secondary.opacity(border ? 0.4 : 0), lineWidth: 1)
+            )
+            .frame(width: 14, height: 14)
     }
 }
 

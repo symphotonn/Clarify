@@ -1,5 +1,5 @@
 # 04. Decision Log (Append-Only)
-_Last updated: 2026-02-13 06:28 UTC_
+_Last updated: 2026-02-21 21:10 UTC_
 
 Do not edit or rewrite prior entries. Add new entries at the top using this format:
 
@@ -8,6 +8,30 @@ Do not edit or rewrite prior entries. Add new entries at the top using this form
   - **Rejected:** ...
 
 ## Entries
+
+- `2026-02-15` - **Decision:** Run explanation completion gate and bounded repair at every depth (1-3), not just depth 1.
+  - **Why:** Deeper explanations (`More`) could still finalize as sentence fragments, which surfaced as visibly incomplete “final” output in result mode.
+  - **Rejected:** Keeping depth-2/3 outside completion checks and relying on manual retries.
+
+- `2026-02-13` - **Decision:** Resize result panel height from finalized explanation text and raise baseline non-chat height.
+  - **Why:** Multiple “incomplete explanation” reports were caused by visual clipping in short fixed panel heights, not missing model output.
+  - **Rejected:** Keeping fixed ~200/220 non-chat heights and relying on users to enter chat to see full text.
+
+- `2026-02-13` - **Decision:** Evaluate completion-quality gate on every depth-1 response, regardless of stop reason.
+  - **Why:** Prevents any stop-reason classification miss from bypassing incomplete-response detection and repair.
+  - **Rejected:** Conditional gate evaluation based on selected stop reasons.
+
+- `2026-02-13` - **Decision:** Render finalized result text with a plain `Text` view in `.result` phase instead of reusing streaming stateful renderer.
+  - **Why:** Hard-guarantees complete on-screen output in result mode and removes residual state-sync races from the reveal component.
+  - **Rejected:** Reusing streaming renderer for both loading and finalized result display.
+
+- `2026-02-13` - **Decision:** In explanation/chat text views, snap to full text immediately when `isStreaming` becomes false.
+  - **Why:** Eliminates intermittent stale partial rendering where final text exists in state but UI still shows a truncated prefix.
+  - **Rejected:** Relying on delayed final-flush timers after streaming completion.
+
+- `2026-02-13` - **Decision:** Expand `.stop` forced-repair guard to include missing terminal punctuation, not only dangling suffix/unmatched structure.
+  - **Why:** Real-world `.stop` responses can still end mid-thought without punctuation (for example trailing “It involves”), causing incomplete first explanations.
+  - **Rejected:** Restricting `.stop` repair triggers to only dangling suffix and delimiter/quote checks.
 
 - `2026-02-13` - **Decision:** Surface incomplete depth-1 outcomes as a subtle inline result hint (`Incomplete response` + `Retry`) instead of an error banner.
   - **Why:** Incomplete output is a degraded-but-recoverable state; low-contrast inline treatment avoids signaling app failure.

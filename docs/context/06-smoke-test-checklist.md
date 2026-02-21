@@ -1,5 +1,5 @@
 # 06. Smoke-Test Checklist
-_Last updated: 2026-02-13 06:28 UTC_
+_Last updated: 2026-02-21 21:10 UTC_
 
 Purpose: quick regression sweep for hotkey, overlay panel behavior, and permissions.
 
@@ -130,7 +130,7 @@ Expected:
 - `.stop` completions are accepted without unnecessary repair round-trip.
 - `.length`/`.unknown` completions are auto-repaired once, bounded by timeout.
 - If repair times out, original text remains visible (no synthetic punctuation patch).
-- Final text never remains partially revealed beyond the flush deadline.
+- Once streaming ends, finalized text snaps fully visible (no stale partial prefix).
 
 ### B12. Incomplete Hint Visual + Recovery
 1. Trigger a scenario where depth-1 result remains incomplete after repair timeout/failure.

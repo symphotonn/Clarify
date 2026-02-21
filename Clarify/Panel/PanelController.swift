@@ -21,22 +21,32 @@ final class PanelController {
     func show(at anchorPoint: CGPoint) {
         removeMonitors()
 
-        let estimatedHeight: CGFloat = 200
+        let estimatedHeight: CGFloat = Constants.resultPanelMinHeight
         let frame = PanelPositioner.frame(anchorPoint: anchorPoint, contentHeight: estimatedHeight)
 
         if panel == nil {
             panel = OverlayPanel(contentRect: frame)
         }
 
+        let theme = appState.settingsManager?.currentTheme ?? .system
         let hostingView = NSHostingView(
             rootView: ExplanationView()
                 .environment(appState)
+                .environment(\.clarifyTheme, theme)
         )
 
         panel?.contentView = hostingView
         panel?.setFrame(frame, display: true)
         panel?.deactivateForInput()
         panel?.alphaValue = 0
+
+        // Start scaled down for entrance animation
+        if let layer = panel?.contentView?.layer {
+            layer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+            let bounds = panel?.contentView?.bounds ?? .zero
+            layer.position = CGPoint(x: bounds.midX, y: bounds.midY)
+            layer.setAffineTransform(CGAffineTransform(scaleX: Constants.scaleFrom, y: Constants.scaleFrom))
+        }
 
         // Keep the source app focused so selected text remains available for AX capture.
         panel?.orderFront(nil)
@@ -46,6 +56,16 @@ final class PanelController {
             context.duration = Constants.fadeInDuration
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             panel?.animator().alphaValue = 1
+            if let layer = panel?.contentView?.layer {
+                let scale = CABasicAnimation(keyPath: "transform.scale")
+                scale.fromValue = Constants.scaleFrom
+                scale.toValue = Constants.scaleTo
+                scale.duration = Constants.fadeInDuration
+                scale.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                scale.isRemovedOnCompletion = true
+                layer.add(scale, forKey: "entranceScale")
+                layer.setAffineTransform(.identity)
+            }
         }
 
         installMonitors()
@@ -87,10 +107,10 @@ final class PanelController {
         updateFrame(contentHeight: Constants.chatPanelMaxHeight, maxHeight: Constants.chatPanelMaxHeight)
     }
 
-    func deactivateFromChat() {
+    func deactivateFromChat(contentHeight: CGFloat = Constants.resultPanelMinHeight) {
         guard let panel else { return }
         panel.deactivateForInput()
-        updateFrame(contentHeight: 220)
+        updateFrame(contentHeight: contentHeight)
     }
 
     func updateFrame(contentHeight: CGFloat, maxHeight: CGFloat = Constants.panelMaxHeight) {

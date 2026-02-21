@@ -3,20 +3,22 @@ import SwiftUI
 struct StreamingTextView: View {
     let text: String
     let isStreaming: Bool
+    @Environment(\.clarifyTheme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var displayedText: String = ""
     @State private var revealTask: Task<Void, Never>?
-    @State private var finalFlushTask: Task<Void, Never>?
     @State private var revealGeneration: Int = 0
 
     var body: some View {
         HStack(alignment: .lastTextBaseline, spacing: 0) {
-            Text(displayedText)
-                .font(.system(.callout, design: .default))
-                .lineSpacing(3)
+            Text(markdownAttributedText)
+                .font(.system(size: 13))
+                .lineSpacing(4)
+                .foregroundStyle(theme.body)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if isStreaming && !displayedText.isEmpty {
+            if isStreaming && !displayedText.isEmpty && !reduceMotion {
                 cursor
             }
         }
@@ -34,15 +36,23 @@ struct StreamingTextView: View {
         .onDisappear {
             revealTask?.cancel()
             revealTask = nil
-            finalFlushTask?.cancel()
-            finalFlushTask = nil
         }
     }
 
+    private var markdownAttributedText: AttributedString {
+        if let attributed = try? AttributedString(
+            markdown: displayedText,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        ) {
+            return attributed
+        }
+        return AttributedString(displayedText)
+    }
+
     private var cursor: some View {
-        Text("|")
+        Text("\u{258E}")
             .font(.callout)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(theme.tertiary)
             .opacity(cursorOpacity)
             .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true), value: isStreaming)
     }
@@ -58,14 +68,21 @@ struct StreamingTextView: View {
         if newValue.isEmpty {
             revealTask?.cancel()
             revealTask = nil
-            finalFlushTask?.cancel()
-            finalFlushTask = nil
             displayedText = ""
             pendingText = ""
             return
         }
 
-        if newValue == displayedText {
+        if newValue == displayedText && newValue == pendingText {
+            return
+        }
+
+        // When not streaming and no active reveal animation, snap immediately.
+        if !isStreaming && revealTask == nil {
+            revealTask?.cancel()
+            revealTask = nil
+            pendingText = newValue
+            displayedText = newValue
             return
         }
 
@@ -78,39 +95,20 @@ struct StreamingTextView: View {
         }
 
         pendingText = newValue
-        startWordRevealIfNeeded()
-        if !isStreaming {
-            scheduleFinalFlushIfNeeded()
+
+        if reduceMotion {
+            displayedText = newValue
+        } else {
+            startWordRevealIfNeeded()
         }
     }
 
     private func handleStreamingStateChange(isStreaming: Bool) {
-        if isStreaming {
-            finalFlushTask?.cancel()
-            finalFlushTask = nil
-            return
-        }
-        scheduleFinalFlushIfNeeded()
-    }
-
-    private func scheduleFinalFlushIfNeeded() {
-        finalFlushTask?.cancel()
-        guard pendingText.count > displayedText.count else {
-            finalFlushTask = nil
-            return
-        }
-
-        finalFlushTask = Task {
-            try? await Task.sleep(for: .milliseconds(Constants.completionFinalFlushMs))
-            guard !Task.isCancelled else { return }
-
-            await MainActor.run {
-                if pendingText.count > displayedText.count {
-                    displayedText = pendingText
-                }
-                finalFlushTask = nil
-            }
-        }
+        if isStreaming { return }
+        // Snap to final text when streaming ends
+        revealTask?.cancel()
+        revealTask = nil
+        displayedText = pendingText
     }
 
     @State private var pendingText: String = ""
@@ -140,6 +138,9 @@ struct StreamingTextView: View {
             await MainActor.run {
                 if revealGeneration == generation {
                     revealTask = nil
+                    if pendingText.count > displayedText.count {
+                        startWordRevealIfNeeded()
+                    }
                 }
             }
         }

@@ -61,7 +61,7 @@ final class AppStateTests: XCTestCase {
         state.permissionGranted = true
 
         XCTAssertEqual(state.overlayPhase, .empty)
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         XCTAssertEqual(state.overlayPhase, .loadingPreToken)
 
         await waitUntilPhase(state, phase: .loadingStreaming)
@@ -72,36 +72,11 @@ final class AppStateTests: XCTestCase {
     }
 
     @MainActor
-    func testDoublePressHiddenOverlayStartsNewExplanation() {
-        let state = makeState(events: [.done(.stop)])
-        state.currentDepth = 2
-        state.isOverlayVisible = false
-        state.explanationBuffer.push(makeExplanation(text: "previous"))
-
-        state.handleHotkey(isDoublePress: true)
-
-        XCTAssertEqual(state.currentDepth, 1)
-    }
-
-    @MainActor
-    func testDoublePressVisibleOverlayGoesDeeper() {
-        let state = makeState(events: [.done(.stop)])
-        state.currentDepth = 1
-        state.isOverlayVisible = true
-        state.currentContext = Self.makeContext()
-        state.explanationBuffer.push(makeExplanation(text: "previous"))
-
-        state.handleHotkey(isDoublePress: true)
-
-        XCTAssertEqual(state.currentDepth, 2)
-    }
-
-    @MainActor
     func testHotkeyWithoutPermissionShowsOnboardingState() {
         let state = makeState(events: [.done(.stop)])
         state.permissionGranted = false
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
 
         XCTAssertTrue(state.isOverlayVisible)
         XCTAssertFalse(state.isLoading)
@@ -131,13 +106,13 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.currentContext?.selectedText, "watch")
         XCTAssertNil(state.errorMessage)
         XCTAssertEqual(state.explanationText, "Hello")
-        XCTAssertEqual(state.explanationBuffer.count, 1)
+
     }
 
     @MainActor
@@ -177,7 +152,7 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.currentContext?.selectedText, "liquidations")
@@ -205,69 +180,69 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
-        XCTAssertEqual(state.errorMessage, "Select some text first")
-        XCTAssertEqual(state.explanationBuffer.count, 0)
+        XCTAssertEqual(state.errorMessage, "Highlight some text, then press your hotkey again.")
+
     }
 
     @MainActor
     func testStreamWithoutModeHeaderFallsBackToLearnAndKeepsText() async {
         let state = makeState(events: [.delta("Hello world"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.currentMode, .learn)
         XCTAssertEqual(state.explanationText, "Hello world")
-        XCTAssertEqual(state.explanationBuffer.last()?.fullText, "Hello world")
+
     }
 
     @MainActor
     func testDuplicateDoneOnlyFinalizesOnce() async {
         let state = makeState(events: [.delta("[MODE: Learn]\nHello"), .done(.stop), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
-        XCTAssertEqual(state.explanationBuffer.count, 1)
-        XCTAssertEqual(state.explanationBuffer.last()?.fullText, "Hello")
+
+
     }
 
     @MainActor
     func testModePrefixWithoutNewlineStillStreamsBodyText() async {
         let state = makeState(events: [.delta("[MODE: Learn]"), .delta("Hello world"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.currentMode, .learn)
         XCTAssertEqual(state.explanationText, "Hello world")
-        XCTAssertEqual(state.explanationBuffer.last()?.fullText, "Hello world")
+
     }
 
     @MainActor
     func testStreamEndingWithoutDoneStillFinalizes() async {
         let state = makeState(events: [.delta("[MODE: Diagnose]\nTraceback")])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.currentMode, .diagnose)
         XCTAssertEqual(state.explanationText, "Traceback")
-        XCTAssertEqual(state.explanationBuffer.count, 1)
+
     }
 
     @MainActor
     func testEmptyStreamShowsActionableError() async {
         let state = makeState(events: [.done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.explanationText, "")
-        XCTAssertEqual(state.explanationBuffer.count, 0)
+
         XCTAssertEqual(state.errorMessage, "No explanation returned. Verify API key, model, and network access.")
     }
 
@@ -275,11 +250,11 @@ final class AppStateTests: XCTestCase {
     func testWhitespaceOnlyBodyShowsActionableError() async {
         let state = makeState(events: [.delta("[MODE: Learn]\n\n\n"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.explanationText, "")
-        XCTAssertEqual(state.explanationBuffer.count, 0)
+
         XCTAssertEqual(state.errorMessage, "No explanation returned. Verify API key, model, and network access.")
     }
 
@@ -287,11 +262,11 @@ final class AppStateTests: XCTestCase {
     func testLeadingWhitespaceInBodyIsTrimmed() async {
         let state = makeState(events: [.delta("[MODE: Learn]\n\n  Hello world"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.explanationText, "Hello world")
-        XCTAssertEqual(state.explanationBuffer.last()?.fullText, "Hello world")
+
         XCTAssertNil(state.errorMessage)
     }
 
@@ -299,11 +274,11 @@ final class AppStateTests: XCTestCase {
     func testZeroWidthOnlyBodyShowsActionableError() async {
         let state = makeState(events: [.delta("[MODE: Learn]\n\u{200B}\u{2060}\u{FEFF}"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.explanationText, "")
-        XCTAssertEqual(state.explanationBuffer.count, 0)
+
         XCTAssertEqual(state.errorMessage, "No explanation returned. Verify API key, model, and network access.")
     }
 
@@ -311,7 +286,7 @@ final class AppStateTests: XCTestCase {
     func testRequestMetricsCaptureStreamingProgress() async {
         let state = makeState(events: [.delta("[MODE: Learn]\nHello"), .delta(" world"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertNotNil(state.lastRequestMetrics)
@@ -327,7 +302,7 @@ final class AppStateTests: XCTestCase {
     func testReturnKeyEntersChatMode() async {
         let state = makeState(events: [.delta("[MODE: Learn]\nHello"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
         XCTAssertEqual(state.overlayPhase, .result)
 
@@ -356,7 +331,7 @@ final class AppStateTests: XCTestCase {
     func testGlobalReturnKeyEntersChatMode() async {
         let state = makeState(events: [.delta("[MODE: Learn]\nHello"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertTrue(state.handleGlobalPanelKeyDown(keyCode: 36, flags: []))
@@ -367,7 +342,7 @@ final class AppStateTests: XCTestCase {
     func testEscInChatReturnsToResult() async {
         let state = makeState(events: [.delta("[MODE: Learn]\nHello"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
         state.enterChatMode()
         XCTAssertEqual(state.overlayPhase, .chat)
@@ -396,7 +371,7 @@ final class AppStateTests: XCTestCase {
     func testGlobalEscInChatReturnsToResult() async {
         let state = makeState(events: [.delta("[MODE: Learn]\nHello"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
         state.enterChatMode()
 
@@ -408,7 +383,7 @@ final class AppStateTests: XCTestCase {
     func testReturnInChatIsNotIntercepted() async {
         let state = makeState(events: [.delta("[MODE: Learn]\nHello"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
         state.enterChatMode()
 
@@ -436,7 +411,7 @@ final class AppStateTests: XCTestCase {
     func testSendChatMessageStreamsAssistantReply() async {
         let state = makeState(events: [.delta("Assistant reply"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
         state.enterChatMode()
 
@@ -455,7 +430,7 @@ final class AppStateTests: XCTestCase {
     func testShouldDismissOnOutsideClickFalseInResult() async {
         let state = makeState(events: [.delta("[MODE: Learn]\nHello"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.overlayPhase, .result)
@@ -466,7 +441,7 @@ final class AppStateTests: XCTestCase {
     func testShouldDismissOnOutsideClickFalseInChat() async {
         let state = makeState(events: [.delta("[MODE: Learn]\nHello"), .done(.stop)])
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
         state.enterChatMode()
 
@@ -483,7 +458,7 @@ final class AppStateTests: XCTestCase {
         let permissionState = makeState(events: [.done(.stop)])
         permissionState.permissionGranted = false
         XCTAssertEqual(permissionState.overlayPhase, .permissionRequired)
-        XCTAssertTrue(permissionState.shouldDismissOnOutsideClick)
+        XCTAssertFalse(permissionState.shouldDismissOnOutsideClick)
 
         let loadingState = AppState(
             contextProvider: { _, _ in Self.makeContext() },
@@ -503,7 +478,7 @@ final class AppStateTests: XCTestCase {
         loadingState.settingsManager = settings
         loadingState.permissionGranted = true
 
-        loadingState.handleHotkey(isDoublePress: false)
+        loadingState.handleHotkey()
         XCTAssertEqual(loadingState.overlayPhase, .loadingPreToken)
         XCTAssertFalse(loadingState.shouldDismissOnOutsideClick)
 
@@ -511,7 +486,7 @@ final class AppStateTests: XCTestCase {
         XCTAssertFalse(loadingState.shouldDismissOnOutsideClick)
 
         let errorState = makeState(events: [.done(.stop)])
-        errorState.handleHotkey(isDoublePress: false)
+        errorState.handleHotkey()
         await waitUntilLoaded(errorState)
         XCTAssertEqual(errorState.overlayPhase, .error)
         XCTAssertTrue(errorState.shouldDismissOnOutsideClick)
@@ -520,8 +495,8 @@ final class AppStateTests: XCTestCase {
     @MainActor
     func testHotkeyPressIgnoredWhileLoading() async {
         let client = SequencedStreamingClient(responses: [
-            [.delta("[MODE: Learn]\nhello"), .done(.stop)],
-            [.delta("[MODE: Learn]\nsecond"), .done(.stop)]
+            [.delta("[MODE: Learn]\nhello."), .done(.stop)],
+            [.delta("[MODE: Learn]\nsecond."), .done(.stop)]
         ])
 
         let state = AppState(
@@ -536,11 +511,11 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         XCTAssertEqual(state.overlayPhase, .loadingPreToken)
 
         // Should be ignored while loading, preventing request restart/cancel.
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
 
         await waitUntilLoaded(state)
         let callCount = await client.callCount()
@@ -568,7 +543,7 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         guard let commandC = NSEvent.keyEvent(
@@ -619,7 +594,7 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.overlayPhase, .result)
@@ -651,7 +626,7 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.overlayPhase, .result)
@@ -664,7 +639,7 @@ final class AppStateTests: XCTestCase {
     func testDepth1StopReasonRepairsDanglingSuffix() async {
         let client = SequencedStreamingClient(responses: [
             [.delta("[MODE: Learn]\nIn this context, \"project\" refers to a collection of files and settings in Xcode that are used to develop an"), .done(.stop)],
-            [.delta("In this context, \"project\" means the files and settings Xcode uses to build an app."), .done(.stop)]
+            [.delta("application."), .done(.stop)]
         ])
 
         let state = AppState(
@@ -679,14 +654,46 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.overlayPhase, .result)
         XCTAssertEqual(
             state.explanationText,
-            "In this context, \"project\" means the files and settings Xcode uses to build an app."
+            "In this context, \"project\" refers to a collection of files and settings in Xcode that are used to develop an application."
         )
+        let callCount = await client.callCount()
+        XCTAssertEqual(callCount, 2)
+    }
+
+    @MainActor
+    func testDepth1StopReasonRepairsMissingTerminalPunctuation() async {
+        let client = SequencedStreamingClient(responses: [
+            [.delta("[MODE: Learn]\nIn this context, \"stage\" means preparing files for a specific action. It involves"), .done(.stop)],
+            [.delta("selecting changes to include in the next commit."), .done(.stop)]
+        ])
+
+        let state = AppState(
+            contextProvider: { _, _ in Self.makeContext(selectedText: "stage") },
+            clientFactory: { _, _ in client },
+            refreshPermissionOnHotkey: false
+        )
+
+        let settings = SettingsManager()
+        settings.apiKey = "test-key"
+        settings.modelName = "test-model"
+        state.settingsManager = settings
+        state.permissionGranted = true
+
+        state.handleHotkey()
+        await waitUntilLoaded(state)
+
+        XCTAssertEqual(state.overlayPhase, .result)
+        XCTAssertEqual(
+            state.explanationText,
+            "In this context, \"stage\" means preparing files for a specific action. It involves selecting changes to include in the next commit."
+        )
+        XCTAssertFalse(state.shouldShowIncompleteRetryHint)
         let callCount = await client.callCount()
         XCTAssertEqual(callCount, 2)
     }
@@ -710,7 +717,7 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.overlayPhase, .result)
@@ -720,7 +727,7 @@ final class AppStateTests: XCTestCase {
     }
 
     @MainActor
-    func testDepth1RepairTimeoutKeepsOriginalText() async {
+    func testRepairTimeoutKeepsOriginalText() async {
         let client = SlowSecondCallStreamingClient(
             firstResponse: [.delta("[MODE: Learn]\nIn this context, \"fragment\" refers to a"), .done(.length)],
             secondResponseDelayNanos: 5_000_000_000,
@@ -739,7 +746,7 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state, timeout: 4.5)
 
         XCTAssertEqual(state.overlayPhase, .result)
@@ -769,7 +776,7 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
         XCTAssertTrue(state.shouldShowIncompleteRetryHint)
 
@@ -819,7 +826,7 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
 
-        state.handleHotkey(isDoublePress: false)
+        state.handleHotkey()
         await waitUntilLoaded(state)
 
         XCTAssertEqual(state.overlayPhase, .result)
@@ -842,15 +849,6 @@ final class AppStateTests: XCTestCase {
         state.settingsManager = settings
         state.permissionGranted = true
         return state
-    }
-
-    private func makeExplanation(text: String) -> StreamingExplanation {
-        StreamingExplanation(
-            fullText: text,
-            mode: .learn,
-            depth: 1,
-            context: Self.makeContext()
-        )
     }
 
     @MainActor

@@ -39,6 +39,16 @@ final class AppState {
                 return "Streaming..."
             }
         }
+
+        var loadingLabel: String? {
+            switch self {
+            case .idle: return nil
+            case .capturingSelection: return "Reading..."
+            case .buildingPrompt: return "Thinking..."
+            case .contactingModel: return "Connecting..."
+            case .generating: return nil
+            }
+        }
     }
 
     struct RequestMetrics: Equatable {
@@ -53,7 +63,6 @@ final class AppState {
     struct SessionDiagnostic {
         let sessionID: UUID
         let phase: SessionPhase
-        let depth: Int
         let metrics: RequestMetrics?
         let errorMessage: String?
         let stopReason: CompletionStopReason?
@@ -103,7 +112,6 @@ final class AppState {
     struct OverlaySession {
         let id: UUID
         var phase: SessionPhase
-        var depth: Int
         var context: ContextInfo?
         var displayText: String
         var errorMessage: String?
@@ -115,7 +123,6 @@ final class AppState {
     private(set) var session = OverlaySession(
         id: UUID(),
         phase: .empty,
-        depth: 0,
         context: nil,
         displayText: "",
         errorMessage: nil,
@@ -142,10 +149,6 @@ final class AppState {
     var currentMode: ExplanationMode {
         get { session.mode }
         set { session.mode = newValue }
-    }
-    var currentDepth: Int {
-        get { session.depth }
-        set { session.depth = newValue }
     }
     var currentContext: ContextInfo? {
         get { session.context }
@@ -174,7 +177,6 @@ final class AppState {
     var chatSession: ChatSession?
 
     let permissionManager = PermissionManager()
-    let explanationBuffer = ExplanationBuffer()
     var settingsManager: SettingsManager?
     var panelController: PanelController?
     var onPermissionGranted: (() -> Void)?
@@ -193,8 +195,6 @@ final class AppState {
     private var currentStreamTask: Task<Void, Never>?
     private var currentChatStreamTask: Task<Void, Never>?
     private var currentCaptureTask: Task<ContextInfo, Never>?
-    private var contextEnrichmentTask: Task<Void, Never>?
-    private var enrichedContextCache: ContextInfo?
     private var activeRequestID = UUID()
     private var streamLifecycleState: StreamLifecycleState = .idle
     private static let nonMeaningfulTextCharacterSet = CharacterSet.whitespacesAndNewlines
@@ -257,7 +257,6 @@ final class AppState {
         OverlaySession(
             id: UUID(),
             phase: permissionGranted ? .empty : .permissionRequired,
-            depth: 0,
             context: nil,
             displayText: "",
             errorMessage: nil,
@@ -270,7 +269,6 @@ final class AppState {
     private func resetSession(
         id: UUID = UUID(),
         phase: SessionPhase,
-        depth: Int,
         context: ContextInfo? = nil,
         displayText: String = "",
         errorMessage: String? = nil,
@@ -281,7 +279,6 @@ final class AppState {
         session = OverlaySession(
             id: id,
             phase: phase,
-            depth: depth,
             context: context,
             displayText: displayText,
             errorMessage: errorMessage,
@@ -307,14 +304,9 @@ final class AppState {
         session.phase = permissionGranted ? .empty : .permissionRequired
     }
 
-    func handleHotkey(isDoublePress: Bool) {
+    func handleHotkey() {
         // Protect in-flight generation from accidental re-trigger.
         if isLoading {
-            return
-        }
-
-        if isDoublePress, isOverlayVisible, let lastExplanation = explanationBuffer.last() {
-            goDeeper(previousExplanation: lastExplanation)
             return
         }
 
@@ -323,7 +315,7 @@ final class AppState {
 
     private func startNewExplanation() {
         let triggerStartedAt = Date()
-        prepareForRequest(depth: 1)
+        prepareForRequest()
         generationStage = .capturingSelection
         if refreshPermissionOnHotkey {
             permissionManager.refreshPermissionStatus()
@@ -419,75 +411,27 @@ final class AppState {
 
             self.streamExplanation(
                 context: context,
-                depth: 1,
-                previousExplanation: nil,
                 requestStartedAt: triggerStartedAt,
                 captureLatencyMs: captureLatencyMs
             )
-            self.scheduleContextEnrichmentIfNeeded(baseContext: context, requestID: requestID)
         }
     }
 
-    private func goDeeper(previousExplanation: StreamingExplanation) {
-        let triggerStartedAt = Date()
-        let nextDepth = min(currentDepth + 1, 3)
-        let existingContext = currentContext
-        prepareForRequest(depth: nextDepth)
-
-        var captureLatencyMs: Int?
-        let context: ContextInfo
-        if let cached = enrichedContextCache,
-           selectionsLikelyMatch(existingContext?.selectedText ?? previousExplanation.context.selectedText, cached.selectedText) {
-            context = mergeContext(primary: existingContext ?? previousExplanation.context, enriched: cached)
-            currentContext = context
-        } else if let existing = existingContext {
-            context = existing
-            currentContext = existing
-        } else {
-            let captureStartedAt = Date()
-            let captured = contextProvider(.full, nil)
-            captureLatencyMs = Int(Date().timeIntervalSince(captureStartedAt) * 1000)
-            currentContext = captured
-            context = captured
-        }
-
-        if !isOverlayVisible {
-            let anchorPoint = CursorPositionProvider.anchorPoint(from: context)
-            panelController?.show(at: anchorPoint)
-            isOverlayVisible = true
-        }
-
-        generationStage = .buildingPrompt
-        streamExplanation(
-            context: context,
-            depth: currentDepth,
-            previousExplanation: previousExplanation.fullText,
-            requestStartedAt: triggerStartedAt,
-            captureLatencyMs: captureLatencyMs
-        )
-    }
-
-    private func prepareForRequest(depth: Int) {
+    private func prepareForRequest() {
         currentStreamTask?.cancel()
         currentChatStreamTask?.cancel()
         currentChatStreamTask = nil
         currentCaptureTask?.cancel()
         currentCaptureTask = nil
-        contextEnrichmentTask?.cancel()
-        contextEnrichmentTask = nil
         if chatSession != nil {
             chatSession = nil
-            panelController?.deactivateFromChat()
+            panelController?.deactivateFromChat(contentHeight: Constants.resultPanelMinHeight)
         }
         activeRequestID = UUID()
-        if depth == 1 {
-            enrichedContextCache = nil
-        }
         shouldShowIncompleteRetryHint = false
         resetSession(
             id: activeRequestID,
             phase: .loadingPreToken,
-            depth: depth,
             context: nil,
             displayText: "",
             errorMessage: nil,
@@ -501,8 +445,6 @@ final class AppState {
 
     private func streamExplanation(
         context: ContextInfo,
-        depth: Int,
-        previousExplanation: String?,
         requestStartedAt: Date,
         captureLatencyMs: Int?
     ) {
@@ -517,11 +459,7 @@ final class AppState {
         }
 
         let promptBuildStartedAt = Date()
-        let prompt = PromptBuilder.build(
-            context: context,
-            depth: depth,
-            previousExplanation: previousExplanation
-        )
+        let prompt = PromptBuilder.build(context: context)
         let promptBuildLatencyMs = Int(Date().timeIntervalSince(promptBuildStartedAt) * 1000)
 
         let client = clientFactory(settings.apiKey, settings.modelName)
@@ -592,29 +530,25 @@ final class AppState {
                 var repairAttempted = false
                 var repairSucceeded = false
                 var repairTimedOut = false
-                let forceRepairOnStop = streamStopReason == .stop
-                    && self.shouldForceRepairForStopCompletion(displayText)
 
-                if depth <= 1,
-                   (streamStopReason.shouldEvaluateCompletionGate || forceRepairOnStop) {
-                    completionGateEvaluated = true
-                    completionGatePassed = CompletionQualityGate.isComplete(displayText)
+                completionGateEvaluated = true
+                completionGatePassed = CompletionQualityGate.isComplete(displayText)
 
-                    if !completionGatePassed, !Task.isCancelled {
-                        repairAttempted = true
-                        let repairResult = await self.repairDepth1ExplanationIfNeeded(
-                            partialExplanation: displayText,
-                            context: context,
-                            client: client
-                        )
-                        repairTimedOut = repairResult?.timedOut == true
-                        if let repaired = repairResult?.text {
-                            repairSucceeded = true
-                            fullText = repaired
-                            displayText = repaired
-                            self.explanationText = displayText
-                            completionGatePassed = CompletionQualityGate.isComplete(displayText)
-                        }
+                if !completionGatePassed, !Task.isCancelled {
+                    repairAttempted = true
+                    let repairResult = await self.repairExplanationIfNeeded(
+                        partialExplanation: displayText,
+                        context: context,
+                        client: client
+                    )
+                    repairTimedOut = repairResult?.timedOut == true
+                    if let repaired = repairResult?.text {
+                        repairSucceeded = true
+                        let merged = self.concatenateRepair(original: displayText, continuation: repaired)
+                        fullText = merged
+                        displayText = merged
+                        self.explanationText = displayText
+                        completionGatePassed = CompletionQualityGate.isComplete(displayText)
                     }
                 }
                 publishRequestMetrics(text: displayText)
@@ -643,6 +577,9 @@ final class AppState {
                 self.errorMessage = nil
                 self.shouldShowIncompleteRetryHint = completionGateEvaluated && !completionGatePassed
                 self.session.phase = .result
+                self.panelController?.updateFrame(
+                    contentHeight: self.estimatedResultPanelHeight(for: displayText)
+                )
                 self.generationStage = .idle
                 self.streamLifecycleState = .completed
                 self.recordSessionDiagnostic(
@@ -655,14 +592,6 @@ final class AppState {
                     repairSucceeded: repairSucceeded,
                     repairTimedOut: repairTimedOut
                 )
-
-                let explanation = StreamingExplanation(
-                    fullText: displayText,
-                    mode: resolvedMode,
-                    depth: depth,
-                    context: context
-                )
-                self.explanationBuffer.push(explanation)
             }
 
             @MainActor
@@ -737,57 +666,6 @@ final class AppState {
         }
     }
 
-    private func scheduleContextEnrichmentIfNeeded(baseContext: ContextInfo, requestID: UUID) {
-        guard baseContext.isPartialContext else {
-            enrichedContextCache = baseContext
-            return
-        }
-
-        contextEnrichmentTask?.cancel()
-        contextEnrichmentTask = Task { [contextProvider] in
-            let enriched = await Task.detached(priority: .utility) {
-                contextProvider(.full, nil)
-            }.value
-
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                guard self.activeRequestID == requestID else { return }
-                guard self.selectionsLikelyMatch(baseContext.selectedText, enriched.selectedText) else { return }
-
-                let merged = self.mergeContext(primary: baseContext, enriched: enriched)
-                self.enrichedContextCache = merged
-
-                if let current = self.currentContext, current.isPartialContext {
-                    self.currentContext = self.mergeContext(primary: current, enriched: enriched)
-                }
-            }
-        }
-    }
-
-    private func mergeContext(primary: ContextInfo, enriched: ContextInfo) -> ContextInfo {
-        ContextInfo(
-            selectedText: enriched.selectedText ?? primary.selectedText,
-            appName: enriched.appName ?? primary.appName,
-            windowTitle: enriched.windowTitle ?? primary.windowTitle,
-            surroundingLines: enriched.surroundingLines ?? primary.surroundingLines,
-            selectionBounds: enriched.selectionBounds ?? primary.selectionBounds,
-            selectedOccurrenceContext: enriched.selectedOccurrenceContext ?? primary.selectedOccurrenceContext,
-            sourceURL: enriched.sourceURL ?? primary.sourceURL,
-            sourceHint: enriched.sourceHint ?? primary.sourceHint,
-            isConversationContext: primary.isConversationContext || enriched.isConversationContext,
-            isPartialContext: primary.isPartialContext && enriched.isPartialContext
-        )
-    }
-
-    private func selectionsLikelyMatch(_ lhs: String?, _ rhs: String?) -> Bool {
-        guard let lhs = lhs?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
-              let rhs = rhs?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
-              !lhs.isEmpty, !rhs.isEmpty else {
-            return false
-        }
-        return lhs == rhs || lhs.contains(rhs) || rhs.contains(lhs)
-    }
-
     private func failRequest(_ message: String) {
         errorMessage = message
         shouldShowIncompleteRetryHint = false
@@ -811,7 +689,6 @@ final class AppState {
         let diagnostic = SessionDiagnostic(
             sessionID: session.id,
             phase: phase,
-            depth: currentDepth,
             metrics: metrics,
             errorMessage: errorMessage,
             stopReason: stopReason,
@@ -856,7 +733,7 @@ final class AppState {
         let timedOut: Bool
     }
 
-    private func repairDepth1ExplanationIfNeeded(
+    private func repairExplanationIfNeeded(
         partialExplanation: String,
         context: ContextInfo,
         client: any StreamingClient
@@ -874,6 +751,7 @@ final class AppState {
         Keep meaning and tone consistent with the existing text.
         Keep it simple, concise, and beginner-friendly.
         Return one or two short complete sentences total for the continuation.
+        Return ONLY the continuation words — do NOT repeat any part of the existing explanation.
         Do not include a [MODE:] header.
         """
 
@@ -891,6 +769,43 @@ final class AppState {
         }
         inputParts.append("Explanation so far (continue from this tail):\n\(continuationTail)")
         inputParts.append("Task: continue and finish the explanation.")
+
+        let input = inputParts.joined(separator: "\n\n")
+        return await runRepairWithTimeout(
+            instructions: instructions,
+            input: input,
+            client: client
+        )
+    }
+
+    private func repairChatResponseIfNeeded(
+        partialResponse: String,
+        chatMessages: [ChatMessage],
+        client: any StreamingClient
+    ) async -> RepairAttemptResult? {
+        let partial = partialResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard hasMeaningfulText(partial) else { return nil }
+        let continuationTail = repairContextTail(
+            from: partial,
+            maxCharacters: Constants.repairContextTailCharacters
+        )
+
+        let instructions = """
+        You are Clarify follow-up chat.
+        Continue and finish the response from where it stops.
+        Keep meaning and tone consistent with the existing text.
+        Keep it concise and practical.
+        Return one or two short complete sentences total for the continuation.
+        Return ONLY the continuation words — do NOT repeat any part of the existing response.
+        """
+
+        var inputParts: [String] = []
+        // Include the last user message for context
+        if let lastUserMessage = chatMessages.last(where: { $0.role == "user" }) {
+            inputParts.append("User question:\n\(lastUserMessage.content)")
+        }
+        inputParts.append("Response so far (continue from this tail):\n\(continuationTail)")
+        inputParts.append("Task: continue and finish the response.")
 
         let input = inputParts.joined(separator: "\n\n")
         return await runRepairWithTimeout(
@@ -973,11 +888,34 @@ final class AppState {
         }
     }
 
-    private func shouldForceRepairForStopCompletion(_ text: String) -> Bool {
-        let reasons = CompletionQualityGate.reasons(for: text)
-        return reasons.contains(.danglingSuffix)
-            || reasons.contains(.unmatchedDelimiter)
-            || reasons.contains(.unmatchedQuote)
+    func concatenateRepair(original: String, continuation: String) -> String {
+        let orig = original.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cont = continuation.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !orig.isEmpty else { return cont }
+        guard !cont.isEmpty else { return orig }
+
+        // Case 1: continuation already contains original (model returned full text)
+        if cont.contains(orig) {
+            return cont
+        }
+
+        // Case 2: overlap detection — suffix of original matches prefix of continuation
+        // Require minimum 4 characters to avoid false positives on short matches
+        let minOverlap = 4
+        let maxOverlap = min(orig.count, cont.count)
+        if maxOverlap >= minOverlap {
+            for length in stride(from: maxOverlap, through: minOverlap, by: -1) {
+                let suffixStart = orig.index(orig.endIndex, offsetBy: -length)
+                let suffix = orig[suffixStart...]
+                if cont.hasPrefix(suffix) {
+                    return orig + cont.dropFirst(length)
+                }
+            }
+        }
+
+        // Case 3: no overlap — concatenate with space
+        return orig + " " + cont
     }
 
     func repairContextTail(from text: String, maxCharacters: Int) -> String {
@@ -999,6 +937,33 @@ final class AppState {
             tail = String(trimmed[hardStart...]).trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return tail
+    }
+
+    private func estimatedResultPanelHeight(for text: String) -> CGFloat {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return Constants.resultPanelMinHeight }
+
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = 4
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 13),
+            .paragraphStyle: paragraphStyle
+        ]
+
+        let contentWidth = Constants.panelWidth - 32
+        let measured = (trimmed as NSString).boundingRect(
+            with: CGSize(width: contentWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attributes,
+            context: nil
+        )
+
+        // Extra buffer for markdown formatting (bold slightly wider, selected text quote)
+        let markdownBuffer: CGFloat = ceil(measured.height * 0.15)
+        let actionRowAndPadding: CGFloat = 78
+        let target = ceil(measured.height) + markdownBuffer + actionRowAndPadding
+        return min(max(target, Constants.resultPanelMinHeight), Constants.panelMaxHeight)
     }
 
     private func hasMeaningfulText(_ text: String) -> Bool {
@@ -1049,7 +1014,7 @@ final class AppState {
     }
 
     private func showNoSelectionError() {
-        errorMessage = "Select some text first"
+        errorMessage = "Highlight some text, then press your hotkey again."
         shouldShowIncompleteRetryHint = false
         session.phase = .error
         generationStage = .idle
@@ -1060,7 +1025,7 @@ final class AppState {
         isOverlayVisible = true
 
         Task {
-            try? await Task.sleep(for: .seconds(2))
+            try? await Task.sleep(for: .seconds(4))
             dismiss()
         }
     }
@@ -1072,12 +1037,10 @@ final class AppState {
         currentChatStreamTask = nil
         currentCaptureTask?.cancel()
         currentCaptureTask = nil
-        contextEnrichmentTask?.cancel()
-        contextEnrichmentTask = nil
         if chatSession != nil {
             chatSession?.cancelStreaming()
             chatSession = nil
-            panelController?.deactivateFromChat()
+            panelController?.deactivateFromChat(contentHeight: Constants.resultPanelMinHeight)
         }
         session.phase = phaseAfterLoadingStops()
         generationStage = .idle
@@ -1092,8 +1055,6 @@ final class AppState {
         currentStreamTask = nil
         currentCaptureTask?.cancel()
         currentCaptureTask = nil
-        contextEnrichmentTask?.cancel()
-        contextEnrichmentTask = nil
         session.phase = phaseAfterLoadingStops()
         generationStage = .idle
         streamLifecycleState = .idle
@@ -1104,22 +1065,14 @@ final class AppState {
             startNewExplanation()
             return
         }
-        let depth = currentDepth > 0 ? currentDepth : 1
-        prepareForRequest(depth: depth)
+        prepareForRequest()
         currentContext = context
         generationStage = .buildingPrompt
         streamExplanation(
             context: context,
-            depth: depth,
-            previousExplanation: nil,
             requestStartedAt: Date(),
             captureLatencyMs: nil
         )
-    }
-
-    func requestDeeperExplanation() {
-        guard let lastExplanation = explanationBuffer.last() else { return }
-        goDeeper(previousExplanation: lastExplanation)
     }
 
     func enterChatMode() {
@@ -1149,7 +1102,7 @@ final class AppState {
         guard overlayPhase == .chat else { return }
         stopChatStreaming(removeEmptyTrailingAssistant: true)
         session.phase = .result
-        panelController?.deactivateFromChat()
+        panelController?.deactivateFromChat(contentHeight: estimatedResultPanelHeight(for: explanationText))
     }
 
     func sendChatMessage() {
@@ -1199,14 +1152,28 @@ final class AppState {
                     case .delta(let text):
                         self.chatSession?.appendDelta(text)
                     case .done:
-                        finalize(removeEmptyTrailingAssistant: true)
+                        break
                     case .error(let message):
                         self.chatSession?.appendDelta("\n\nError: \(message)")
                         finalize(removeEmptyTrailingAssistant: true)
                     }
                 }
 
-                if !Task.isCancelled {
+                if !Task.isCancelled && !didFinalize {
+                    // Chat completion gate: check if last assistant message is complete
+                    if let lastContent = self.chatSession?.messages.last(where: { $0.role == .assistant })?.content,
+                       !lastContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                       !CompletionQualityGate.isComplete(lastContent) {
+                        let repairResult = await self.repairChatResponseIfNeeded(
+                            partialResponse: lastContent,
+                            chatMessages: messages,
+                            client: client
+                        )
+                        if let repaired = repairResult?.text {
+                            let merged = self.concatenateRepair(original: lastContent, continuation: repaired)
+                            self.chatSession?.replaceLastAssistantContent(merged)
+                        }
+                    }
                     finalize(removeEmptyTrailingAssistant: true)
                 }
             } catch {
@@ -1230,19 +1197,15 @@ final class AppState {
         }
     }
 
-    var canRequestDeeperExplanation: Bool {
-        overlayPhase == .result && currentDepth < 3 && explanationBuffer.last() != nil
-    }
-
     var canCopyCurrentExplanation: Bool {
         overlayPhase == .result && hasMeaningfulExplanationText
     }
 
     var shouldDismissOnOutsideClick: Bool {
         switch overlayPhase {
-        case .loadingPreToken, .loadingStreaming, .result, .chat:
+        case .loadingPreToken, .loadingStreaming, .result, .chat, .permissionRequired:
             return false
-        case .permissionRequired, .error, .empty:
+        case .error, .empty:
             return true
         }
     }
@@ -1374,11 +1337,5 @@ private extension ContextInfo {
         let surrounding = (surroundingLines ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let occurrence = (selectedOccurrenceContext ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         return !surrounding.isEmpty || !occurrence.isEmpty
-    }
-}
-
-private extension CompletionStopReason {
-    var shouldEvaluateCompletionGate: Bool {
-        self == .length || self == .unknown
     }
 }
